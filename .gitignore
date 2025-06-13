@@ -15,7 +15,7 @@ build/
 .vscode/
 
 # Slurm output
-./slurm*.out
+slurm*.out
 
 # Sam and Agile3D weights
-.weights/
+weights/
