@@ -19,3 +19,6 @@ slurm*.out
 
 # Sam and Agile3D weights
 weights/
+
+# Data folder
+data/

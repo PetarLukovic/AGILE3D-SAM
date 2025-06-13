@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-scannet_folder="/home/plukovic/interactive_segmentation/AGILE3D/data/scannet"
+scannet_folder="/home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet"
 
 python eval_single_obj.py --dataset=scannet40 \
                --dataset_mode=single_obj \
