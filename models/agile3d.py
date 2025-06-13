@@ -269,7 +269,7 @@ class Agile3d(nn.Module):
 
             for click in fg_clicks_raw_coords_list:
                 new_clicks = []
-                new_clicks, selected_cameras = process_click(sensors, click, verbose=True, visualize=False, num_new_clicks=5)
+                new_clicks, selected_cameras = process_click(sensors, click, verbose=True, visualize=False, num_new_clicks=4)
                 fg_clicks_coords_list_augmented.extend(new_clicks)
                 selected_cameras_list.extend(selected_cameras)
 

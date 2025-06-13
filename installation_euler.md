@@ -82,9 +82,9 @@ conda install opencv
 Launch a longer GPU job for evaluation:
 
 ```bash
-sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=72:00:00 ./scripts/eval_single_scannet40.sh
+sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=96:00:00 ./scripts/eval_single_scannet40_euler.sh
 
-srun --time=48:00:00 --cpus-per-task=1 --mem-per-cpu=1024g ./scripts/parallel_download_scannet.sh --val
+srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=1024g ./scripts/parallel_download_scannet.sh --val
 ```
 
 
