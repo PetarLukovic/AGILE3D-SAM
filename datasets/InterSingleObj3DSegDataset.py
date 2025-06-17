@@ -43,7 +43,7 @@ class InterSingleObj3DSegDataset(Dataset):
         #scene_name = 'scene0663_00'
         #object_id = '24'
         
-        scene_name_start = 'scene0011_00'
+        scene_name_start = 'scene0671_00'
         object_id_start = '1'
         
         scene_name_end = None
