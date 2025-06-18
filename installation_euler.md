@@ -13,7 +13,7 @@ cd AGILE3D
 ## ⚙️ Load Required Modules
 
 ```bash
-module load stack/2024-04 gcc/8.5.0 cuda/11.8.0 eth_proxy
+module load stack/2024-06 gcc/12.2.0 cuda/11.8.0 eth_proxy
 ```
 
 ## 🐍 Create and Configure Conda Environment

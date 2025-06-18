@@ -4,7 +4,6 @@ import torch
 import numpy as np
 import open3d as o3d
 
-
 def create_camera_frustum(scale=0.1, color=[0, 1, 0]):
     points = np.array([
         [0, 0, 0], [1, 1, 2], [1, -1, 2], [-1, -1, 2], [-1, 1, 2]
@@ -74,3 +73,46 @@ def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates, subs
     geometries += frustums
 
     o3d.visualization.draw_geometries(geometries)
+
+def visualize_camera_with_point(scene_data, cam_idx, point):
+    rgb = scene_data.__get_camera_rgb__(cam_idx)
+    rgb_vis = rgb.permute(1, 2, 0).cpu().numpy()
+
+    scale_x = 1296 / 640
+    scale_y = 968 / 480
+    x , y = point
+    x = int(x * scale_x)
+    y = int(y * scale_y)
+
+    if x < 0 or x >= rgb_vis.shape[1] or y < 0 or y >= rgb_vis.shape[0]:
+        print(f"    Warning: Pixel coordinates ({x}, {y}) are out of bounds for camera {cam_idx}.")
+        return
+
+    cv2.circle(rgb_vis, (x, y), radius=5, color=(0, 255, 0), thickness=-1)
+
+    cv2.imshow(f'Camera {cam_idx} - RGB with Selected Pixel', rgb_vis)
+    cv2.waitKey(0)
+    cv2.destroyWindow(f'Camera {cam_idx} - RGB with Selected Pixel')
+
+def visualize_camera_with_mask_with_point(scene_data, cam_idx, mask, point):
+    rgb = scene_data.__get_camera_rgb__(cam_idx)
+    rgb_vis = rgb.permute(1, 2, 0).cpu().numpy()
+    target_size = (812, 512)
+    
+    mask_vis = mask.numpy().astype(np.uint8) * 255
+    mask_vis = cv2.cvtColor(mask_vis, cv2.COLOR_GRAY2BGR)
+    rgb_vis = cv2.resize(rgb_vis, target_size)
+    mask_vis = cv2.resize(mask_vis, target_size)
+
+    scale_x = target_size[0] / mask.shape[1]
+    scale_y = target_size[1] / mask.shape[0]
+    x, y = point
+    x_scaled = int(x * scale_x)
+    y_scaled = int(y * scale_y)
+
+    cv2.circle(rgb_vis, (x_scaled, y_scaled), radius=5, color=(0, 255, 0), thickness=-1)
+    cv2.circle(mask_vis, (x_scaled, y_scaled), radius=5, color=(0, 255, 0), thickness=-1)
+    combined = np.hstack((rgb_vis, mask_vis))
+    cv2.imshow(f'Camera {cam_idx} - RGB and SAM Mask', combined)
+    cv2.waitKey(0)
+    cv2.destroyWindow(f'Camera {cam_idx} - RGB and SAM Mask')

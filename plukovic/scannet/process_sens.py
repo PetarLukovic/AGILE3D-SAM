@@ -18,7 +18,7 @@ args = parser.parse_args()
 
 # eg. python3 plukovic/scannet/process_sens.py --scannet_folder "/cluster/scratch/plukovic/scannet/scannet_v2_test" --scans_file "/cluster/scratch/plukovic/scannet/scannet_v2_test/scannetv2_val.txt"
 #num_workers = os.cpu_count()
-num_workers = 32
+num_workers = 4
 
 def process_scan(scan, scannet_folder):
     scans_folder = os.path.join(scannet_folder, 'scans')

@@ -13,11 +13,8 @@ import MinkowskiEngine as ME
 
 import numpy as np
 import os
-import json
 
 from utils.ply import read_ply
-
-from copy import deepcopy
 
 class InterSingleObj3DSegDataset(Dataset):
     '''
@@ -39,11 +36,8 @@ class InterSingleObj3DSegDataset(Dataset):
 
         self.quantization_size = quantization_size
         self.scan_folder = scan_folder
-
-        #scene_name = 'scene0663_00'
-        #object_id = '24'
         
-        scene_name_start = 'scene0671_00'
+        scene_name_start = 'scene0011_00'
         object_id_start = '1'
         
         scene_name_end = None

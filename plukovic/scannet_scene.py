@@ -68,8 +68,12 @@ class SensorData(Dataset):
     def __get_camera_intrinsics__(self, idx):
         intrinsics = self.intrinsics[idx]
         intrinsics = torch.from_numpy(intrinsics)
-        return intrinsics
+        return intrinsics[0, 0], intrinsics[1, 1], intrinsics[0, 2], intrinsics[1, 2]
     
     def __get_camera_resolution__(self, idx):
         height, width, _ = self.rgb[idx].shape
+        return height, width
+    
+    def __get_depth_resolution__(self, idx):
+        height, width = self.depth[idx].shape
         return height, width

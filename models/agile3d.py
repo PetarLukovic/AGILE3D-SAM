@@ -223,53 +223,21 @@ class Agile3d(nn.Module):
             fg_clicks_coords_list_augmented = []
             selected_cameras_list = []
 
-            '''
-            import matplotlib.pyplot as plt
-            from mpl_toolkits.mplot3d import Axes3D
-            import open3d as o3d
-
-            coordinates = torch.tensor(coordinates.features, device='cpu')
-            ply_file = sensors.ply_file
-            pcd = o3d.io.read_point_cloud(ply_file)
-
-            new_point = torch.tensor([[[1.2309, 3.8600, 0.4687]]], device='cpu').squeeze()  # shape [3]
-            #new_point = new_point + sensors.min_values
-
-            # Load point cloud from ply file
-            ply_file = sensors.ply_file  # your .ply file path
-            pcd = o3d.io.read_point_cloud(ply_file)
-
-            # Convert tensor points to Open3D point cloud
-            points_np = coordinates.numpy()
-            new_point_np = new_point.numpy().reshape(1, 3)
-
-            # Create Open3D point cloud for your points
-            pcd_tensor_points = o3d.geometry.PointCloud()
-            pcd_tensor_points.points = o3d.utility.Vector3dVector(points_np)
-
-            # Create Open3D point cloud for new point
-            pcd_new_point = o3d.geometry.PointCloud()
-            pcd_new_point.points = o3d.utility.Vector3dVector(new_point_np)
-
-            # Color the points differently
-            pcd_tensor_points.paint_uniform_color([0, 0, 1])  # Blue for original points
-            pcd_new_point.paint_uniform_color([1, 0, 0])     # Red for new point
-            pcd.paint_uniform_color([0.5, 0.5, 0.5])         # Gray for loaded ply point cloud
-
-            # Visualize all together
-            
-            # Instead of PointCloud for new point, use a Sphere
-            sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.2)  # Adjust size here
-            sphere.translate(new_point_np[0])  # Move it to the new point location
-            sphere.paint_uniform_color([1, 0, 0])  # Red
-
-            # Visualize everything
-            o3d.visualization.draw_geometries([pcd, pcd_tensor_points, sphere])
-            '''            
+            config = {
+                'num_new_clicks': 4,
+                'max_attempts_camera_selection': 50,
+                'max_attemps_pixel_sampling': 5,
+                'object_click_padding': 10,
+                'verbose': True,
+                'visualize': False,
+                'projection_near_m': 0.01,
+                'projection_far_m': 10000.0,
+                'depth_threshold_mm': 50,     
+            }
 
             for click in fg_clicks_raw_coords_list:
                 new_clicks = []
-                new_clicks, selected_cameras = process_click(sensors, click, verbose=True, visualize=False, num_new_clicks=4)
+                new_clicks, selected_cameras = process_click(sensors, click, config)
                 fg_clicks_coords_list_augmented.extend(new_clicks)
                 selected_cameras_list.extend(selected_cameras)
 
