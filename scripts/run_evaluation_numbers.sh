@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
-python -m evaluation.evaluator_SO --dataset=scannet40 \
-               --val_list=/cluster/scratch/plukovic/scannet/scannet_v2/single/object_ids.npy \
-               --val_list_classes=/cluster/scratch/plukovic/scannet/scannet_v2/single/object_classes.txt \
-               --results_file=/cluster/scratch/plukovic/AGILE3D/results/val_results_single_aligned.csv \
+agile3d_folder="/home/plukovic/interactive_segmentation/AGILE3D-SAM"
+
+python3 -m evaluation.evaluator_SO --dataset=scannet40 \
+               --val_list=${agile3d_folder}/data/scannet/single/object_ids.npy \
+               --val_list_classes=${agile3d_folder}/data/scannet/single/object_classes.txt \
+               --results_file=${agile3d_folder}/results/val_results_single_20250618_174756.csv
+
+python3 -m evaluation.evaluator_SO --dataset=scannet40 \
+               --val_list=${agile3d_folder}/data/scannet/single/object_ids.npy \
+               --val_list_classes=${agile3d_folder}/data/scannet/single/object_classes.txt \
+               --results_file=${agile3d_folder}/results/our_single_scannet.csv
