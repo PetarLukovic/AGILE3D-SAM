@@ -17,20 +17,7 @@ import os
 from utils.ply import read_ply
 
 class InterSingleObj3DSegDataset(Dataset):
-    '''
-    def __init__(self, scan_folder, object_list, quantization_size, crop=False, transforms=None):
-        super(InterSingleObj3DSegDataset, self).__init__()
 
-        self.quantization_size = quantization_size
-        self.scan_folder = scan_folder
-
-
-        self.dataset_list = np.load(object_list)
-        self.dataset_size = len(self.dataset_list)
-
-        self.crop = crop
-        self.transforms = transforms
-    '''
     def __init__(self, scan_folder, object_list, quantization_size, crop=False, transforms=None):
         super(InterSingleObj3DSegDataset, self).__init__()
 
@@ -38,7 +25,7 @@ class InterSingleObj3DSegDataset(Dataset):
         self.scan_folder = scan_folder
         
         scene_name_start = 'scene0011_00'
-        object_id_start = '1'
+        object_id_start = '2'
         
         scene_name_end = None
         object_id_end = '90'

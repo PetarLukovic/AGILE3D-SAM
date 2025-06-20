@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-scannet_folder="/home/petar/data/interactive_segmentation/AGILE3D-SAM/data/scannet_v2"
+scannet_folder="/home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet"
 
 python eval_single_obj.py --dataset=scannet40 \
                --dataset_mode=single_obj \
@@ -11,4 +11,3 @@ python eval_single_obj.py --dataset=scannet40 \
                --checkpoint=weights/checkpoint1099.pth \
                --val_batch_size=1 \
                --max_num_clicks=1 \
-

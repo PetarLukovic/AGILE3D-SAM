@@ -26,7 +26,7 @@ def create_sphere_at_point(center, radius=0.1, color=[1, 0, 0]):
     sphere.translate(point_3d)
     return sphere
 
-def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates, subsample_frustrums=False):
+def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates_fg, click_coordinates_bg, subsample_frustrums=False):
 
     ply_file = scene_data.ply_file
     print(f"    Visualizing scene: {scene_data.scene_name} with PLY file: {ply_file}")
@@ -59,13 +59,19 @@ def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates, subs
         frustums = frustums[::10]
 
     geometries = [pcd]
-    for id, click in enumerate(click_coordinates):
+    for id, click in enumerate(click_coordinates_fg):
 
         if id == 0:
             color = [0, 0, 1]
         else:
             color = [1, 0, 0]
 
+        click = np.array(click.numpy()).flatten() if isinstance(click, torch.Tensor) else np.array(click)
+        sphere = create_sphere_at_point(click, radius=0.05, color=color)
+        geometries.append(sphere)
+
+    for id, click in enumerate(click_coordinates_bg):
+        color = [0, 1, 0]
         click = np.array(click.numpy()).flatten() if isinstance(click, torch.Tensor) else np.array(click)
         sphere = create_sphere_at_point(click, radius=0.05, color=color)
         geometries.append(sphere)

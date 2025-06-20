@@ -221,10 +221,12 @@ class Agile3d(nn.Module):
             # Augment the coordinates
             fg_clicks_raw_coords_list = fg_clicks_coords.squeeze(0).tolist()
             fg_clicks_coords_list_augmented = []
-            selected_cameras_list = []
+
+            bg_clicks_coords_list_augmented = []
 
             config = {
-                'num_new_clicks': 4,
+                'num_new_clicks_fg': 4,
+                'num_new_clicks_bg': 0,
                 'max_attempts_camera_selection': 50,
                 'max_attemps_pixel_sampling': 5,
                 'object_click_padding': 10,
@@ -236,35 +238,55 @@ class Agile3d(nn.Module):
             }
 
             for click in fg_clicks_raw_coords_list:
-                new_clicks = []
-                new_clicks, selected_cameras = process_click(sensors, click, config)
-                fg_clicks_coords_list_augmented.extend(new_clicks)
-                selected_cameras_list.extend(selected_cameras)
+                new_clicks_fg = []
+                new_clicks_bg = []
+                new_clicks_fg, new_clicks_bg, _ = process_click(sensors, click, config)
+                fg_clicks_coords_list_augmented.extend(new_clicks_fg)
+                bg_clicks_coords_list_augmented.extend(new_clicks_bg)
 
-            print('Original click coordinates:', fg_clicks_coords - min_values_tensor)
-            print('Original click indexes:', click_idx_sample['1'])
+            if fg_clicks_coords_list_augmented != [] and fg_clicks_coords_list_augmented != None:
 
-            fg_clicks_coords_list_augmented = fg_clicks_coords_list_augmented - sensors.min_values
-            fg_clicks_coords_list_augmented = fg_clicks_coords_list_augmented.tolist()
+                fg_clicks_coords_list_augmented = fg_clicks_coords_list_augmented - sensors.min_values
+                fg_clicks_coords_list_augmented = fg_clicks_coords_list_augmented.tolist()
 
-            for i, click in enumerate(fg_clicks_coords_list_augmented):
-                if i == 0:
-                    continue
-                point_idx = find_nearest(coordinates.features, click)
-                click_idx_sample['1'].append(point_idx)
-                click_time_idx_sample['1'].append(0)
+                for i, click in enumerate(fg_clicks_coords_list_augmented):
+                    if i == 0:
+                        continue
+                    point_idx = find_nearest(coordinates.features, click)
+                    click_idx_sample['1'].append(point_idx)
+                    click_time_idx_sample['1'].append(0)
 
-            new_coords_list = [
-                features[click_idx_sample[str(i)], :]
-                for i in range(1, fg_obj_num + 1)
-            ]
+                new_coords_list = [
+                    features[click_idx_sample[str(i)], :]
+                    for i in range(1, fg_obj_num + 1)
+                ]
 
-            fg_clicks_coords = torch.vstack(new_coords_list).unsqueeze(0)
-            fg_clicks_coords.to(device=pcd_features.device)
-            
-            
-            print('Augumented click coordinates:', fg_clicks_coords)
-            print('Augumented click indexes:', click_idx_sample['1'])
+                fg_clicks_coords = torch.vstack(new_coords_list).unsqueeze(0)
+                fg_clicks_coords.to(device=pcd_features.device)
+
+                print('Augumented click coordinates fg:', fg_clicks_coords)
+                print('Augumented click indexes fg:', click_idx_sample['1'])
+
+
+            if bg_clicks_coords_list_augmented != [] and bg_clicks_coords_list_augmented != None:
+
+                bg_clicks_coords_list_augmented = bg_clicks_coords_list_augmented - sensors.min_values
+                bg_clicks_coords_list_augmented = bg_clicks_coords_list_augmented.tolist()
+
+                for i, click in enumerate(bg_clicks_coords_list_augmented):
+                    point_idx = find_nearest(coordinates.features, click)
+                    click_idx_sample['0'].append(point_idx)
+                    click_time_idx_sample['0'].append(0)
+
+                new_coords_list = [
+                    features[click_idx_sample['0'], :]
+                ]
+
+                bg_clicks_coords = torch.vstack(new_coords_list).unsqueeze(0)
+                bg_clicks_coords.to(device=pcd_features.device)
+
+                print('Augumented click coordinates bg:', bg_clicks_coords)
+                print('Augumented click indexes bg:', click_idx_sample['0'])
 
             fg_query_num_split = [len(click_idx_sample[str(i)]) for i in range(1, fg_obj_num + 1)]
             fg_query_num = sum(fg_query_num_split)
