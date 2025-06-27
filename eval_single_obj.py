@@ -20,14 +20,15 @@ from models import build_model, build_criterion
 import MinkowskiEngine as ME
 from utils.seg import mean_iou_scene, extend_clicks, get_simulated_clicks
 import utils.misc as utils
-from plukovic.scannet_scene import SensorData
 from datetime import datetime
 
 from evaluation.evaluator_SO import EvaluatorSO
 import wandb
 import os
 
-from interactive_tool.utils import find_nearest
+from plukovic.simulate_clicks import get_simualted_clicks_scene_sam
+from plukovic.scannet_scene import SensorData
+from plukovic.visualisation import visualize_iou_scene, visualize_gt_scene
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Evaluation', add_help=False)
@@ -97,7 +98,6 @@ def Evaluate(model, data_loader, args, device):
 
         coords, raw_coords, feats, labels, labels_full, inverse_map, click_idx, scene_name, object_id = batched_inputs
         sensors = SensorData(os.path.join(args.scan_folder, scene_name[0], scene_name[0] + '.hdf5'))
-        #sensors = SensorData("/cluster/scratch/plukovic/scannet/scannet_v2/scans/scene0015_00/scene0015_00.hdf5")
 
         coords = coords.to(device)
         raw_coords = raw_coords.to(device)
@@ -119,34 +119,49 @@ def Evaluate(model, data_loader, args, device):
 
         click_time_idx = copy.deepcopy(click_idx)
 
-        current_num_clicks = 0
-
         # pre-compute backbone features only once
         pcd_features, aux, coordinates, pos_encodings_pcd = model.forward_backbone(data, raw_coordinates=raw_coords)
 
-        max_num_clicks = args.max_num_clicks
+        sim_clicks = []
+        sim_click_times = []
 
-        while current_num_clicks <= max_num_clicks:
+        for idx in range(batch_size):
 
-            augumented_clicks_len = 0
+            pred = [torch.zeros(l.shape).to(device) for l in labels]
+            sample_mask = batch_idx == idx
+            sample_pred = pred[idx]
+            sample_labels = labels[idx]
+            sample_raw_coords = raw_coords[sample_mask]
+
+            new_clicks, _, _, new_click_times = get_simulated_clicks(sample_pred, sample_labels, sample_raw_coords, 0, training=False)
+            print(f"-----------------------------------------------------------------------------------------")
+            sam_click_list, sam_click_times_list = get_simualted_clicks_scene_sam(raw_coords, new_clicks, sensors)
+            print(f"-----------------------------------------------------------------------------------------")
+            
+            sim_clicks.append([])
+            sim_clicks[idx].extend([new_clicks])
+            sim_clicks[idx].extend(sam_click_list)
+
+            sim_click_times.append([])
+            sim_click_times[idx].extend([new_click_times])
+            sim_click_times[idx].extend(sam_click_times_list)
+
+        for current_num_clicks in range(len(sim_clicks[0])+1):
 
             if current_num_clicks == 0:
                 pred = [torch.zeros(l.shape).to(device) for l in labels]
             else:
                 outputs = model.forward_mask(pcd_features, aux, coordinates, pos_encodings_pcd,
-                                             click_idx=click_idx, click_time_idx=click_time_idx, sensors=sensors)
+                                             click_idx=click_idx, click_time_idx=click_time_idx)
                 pred_logits = outputs['pred_masks']
-                augumented_clicks_len = outputs['num_clicks']
                 pred = [p.argmax(-1) for p in pred_logits]
 
             updated_pred = []
 
-            for idx in range(batch_idx.max()+1):
+            for idx in range(batch_size):
+        
                 sample_mask = batch_idx == idx
                 sample_pred = pred[idx]
-
-                sample_mask = sample_mask.to(feats.device)
-                sample_feats = feats[sample_mask]
 
                 if current_num_clicks != 0:
                     # update prediction with sparse gt
@@ -158,32 +173,32 @@ def Evaluate(model, data_loader, args, device):
                 sample_raw_coords = raw_coords[sample_mask]
                 sample_pred_full = sample_pred[inverse_map[idx]]
 
+                if current_num_clicks >= 1:
+                    visualize_iou_scene(raw_coords, sample_pred, sample_labels)
+                    visualize_gt_scene(raw_coords, sample_labels)
+
                 sample_labels_full = labels_full[idx]
                 sample_iou, _ = mean_iou_scene(sample_pred_full, sample_labels_full)
 
-                line = str(instance_counter+idx) + ' ' + scene_name[idx].replace('scene','') + ' ' + object_id[idx] + ' ' + str(current_num_clicks) +  ' ' + str(
-                sample_iou.cpu().numpy()) + ' ' + str(augumented_clicks_len) + '\n'
+                line = str(instance_counter+idx) + ' ' + scene_name[idx].replace('scene','') + ' '  + object_id[idx] + ' ' + str(current_num_clicks) +  ' ' + str(
+                sample_iou.cpu().numpy()) + '\n'
                 f.write(line)
-                f.flush()
-                os.fsync(f.fileno())
+                print(scene_name[idx], ' | Object: ', object_id[idx], ' | num clicks: ', current_num_clicks, ' | IOU: ', sample_iou.item())
 
-                print()
-                print(scene_name[idx], ' | Object: ', object_id[idx], ' | Num clicks: ', current_num_clicks, ' | IOU: ', sample_iou.item(), ' | Number of augumented clicks: ', augumented_clicks_len)
-    
-                new_clicks, new_clicks_num, new_click_pos, new_click_time = get_simulated_clicks(sample_pred, sample_labels, sample_raw_coords, current_num_clicks, training=False)
-
-                ### add new clicks ###
-                if new_clicks is not None:
+                if current_num_clicks < len(sim_clicks[idx]):
+                    new_clicks = sim_clicks[idx][current_num_clicks]
+                    new_click_time = sim_click_times[idx][current_num_clicks]
+                    print(f"Adding new clicks: {new_clicks}.")
                     click_idx[idx], click_time_idx[idx] = extend_clicks(click_idx[idx], click_time_idx[idx], new_clicks, new_click_time)
+                    
+                else:
+                    print(f"No more clicks to add.")
 
-
-            current_num_clicks += 1
-
-        instance_counter += len(object_id)
+                print(f"-----------------------------------------------------------------------------------------")
 
     f.close()
-    evaluator = EvaluatorSO(args.dataset, args.val_list, args.val_list_classes, results_file, [0.5,0.65,0.8,0.85,0.9])
-    results_dict = evaluator.eval_results()
+    #evaluator = EvaluatorSO(args.dataset, args.val_list, args.val_list_classes, results_file, [0.5,0.65,0.8,0.85,0.9])
+    #results_dict = evaluator.eval_results()
 
 def main(args):
 

@@ -6,7 +6,6 @@ import torch
 import numpy as np
 import random
 
-
 def mean_iou_single(pred, labels):
     """Calculate the mean IoU for a single object
     """

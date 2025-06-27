@@ -27,12 +27,11 @@ class InterSingleObj3DSegDataset(Dataset):
         scene_name_start = 'scene0011_00'
         object_id_start = '2'
         
-        scene_name_end = None
-        object_id_end = '90'
+        scene_name_end = 'scene0011_00'
+        object_id_end = '2'
 
         self.dataset_list = np.load(object_list, allow_pickle=True)
         original_size = len(self.dataset_list)
-        print(f"Original dataset size: {original_size}")
 
         start_index = None
         for i, (scene, obj_id) in enumerate(self.dataset_list):
@@ -54,8 +53,6 @@ class InterSingleObj3DSegDataset(Dataset):
             print(f"Warning: Pair ({scene_name_start}, {object_id_start}) not found. Dataset will be empty.")
             self.dataset_list = []
 
-        filtered_size = len(self.dataset_list)
-        print(f"Filtered dataset size: {filtered_size}")
         self.dataset_size = len(self.dataset_list)
 
         self.crop = crop

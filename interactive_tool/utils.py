@@ -25,7 +25,7 @@ def get_obj_color(obj_idx, normalize=False):
     return [r, g, b]
 
 def find_nearest(coordinates, value):
-    distance = torch.cdist(coordinates, torch.tensor([value]).to(coordinates.device), p=2)
+    distance = torch.cdist(coordinates, torch.tensor(value).to(dtype=torch.float).to(coordinates.device).unsqueeze(0), p=2)
     return distance.argmin().tolist()
 
 def mean_iou_single(pred, labels):

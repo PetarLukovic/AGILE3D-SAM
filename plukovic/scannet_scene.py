@@ -1,4 +1,5 @@
 import os
+import cv2
 import h5py
 import torch
 import numpy as np
@@ -15,6 +16,7 @@ class SensorData(Dataset):
         self.poses = self.h5_file['poses']                # (N, 4, 4), float32
         self.intrinsics = self.h5_file['intrinsics']      # (N, 3, 3), float32
         self.length = self.rgb.shape[0]
+        self.DEVICE = "cpu"
 
         self.scene_name = hdf5_path.split('/')[-1].split('.')[0]
         self.path = hdf5_path
@@ -48,26 +50,29 @@ class SensorData(Dataset):
 
     def __get_camera_rgb__(self, idx):
         rgb = self.rgb[idx]
-        rgb = torch.from_numpy(rgb).permute(2, 0, 1).float() / 255.0  
+        depth_height, depth_width = self.__get_depth_resolution__(idx)
+        rgb = cv2.resize(rgb, (depth_width, depth_height), interpolation=cv2.INTER_LINEAR)
+        rgb = torch.from_numpy(rgb).to(device=self.DEVICE)
         if self.transform:
             rgb = self.transform(rgb)
+        
         return rgb
     
     def __get_camera_depth__(self, idx):
         depth = self.depth[idx]
-        depth = torch.from_numpy(depth)
+        depth = torch.from_numpy(depth).to(device=self.DEVICE)
         if self.transform:
             depth = self.transform(depth)
         return depth
     
     def __get_camera_pose__(self, idx):
         pose = self.poses[idx]
-        pose = torch.from_numpy(pose)
+        pose = torch.from_numpy(pose).to(device=self.DEVICE)
         return pose
 
     def __get_camera_intrinsics__(self, idx):
         intrinsics = self.intrinsics[idx]
-        intrinsics = torch.from_numpy(intrinsics)
+        intrinsics = torch.from_numpy(intrinsics).to(device=self.DEVICE)
         return intrinsics[0, 0], intrinsics[1, 1], intrinsics[0, 2], intrinsics[1, 2]
     
     def __get_camera_resolution__(self, idx):

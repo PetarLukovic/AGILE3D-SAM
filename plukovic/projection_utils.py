@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 
 def check_camera_visibility(scene_data, idx, click_coordinate, config):
 
@@ -7,7 +6,8 @@ def check_camera_visibility(scene_data, idx, click_coordinate, config):
         fx, fy, cx, cy = scene_data.__get_camera_intrinsics__(idx)
         pose = scene_data.__get_camera_pose__(idx)
         depth = scene_data.__get_camera_depth__(idx)
-    except Exception:
+    except Exception as e:
+        print(e)
         return False, None
 
     if torch.isinf(pose).any() or torch.isnan(pose).any():
@@ -30,10 +30,10 @@ def check_camera_visibility(scene_data, idx, click_coordinate, config):
     x_pixel = (fx * point_cam[0].item() / z.item()) + cx
     y_pixel = (fy * point_cam[1].item() / z.item()) + cy
 
-    x_pix_int = int(torch.round(x_pixel))
-    y_pix_int = int(torch.round(y_pixel))
+    x_pix_int = int(x_pixel)
+    y_pix_int = int(y_pixel)
 
-    h, w = depth.shape
+    h, w = scene_data.__get_depth_resolution__(idx)
 
     if not (0 <= x_pix_int < w and 0 <= y_pix_int < h):
         return False, None
@@ -54,4 +54,5 @@ def check_camera_visibility(scene_data, idx, click_coordinate, config):
     if depth_diff_mm > config['depth_threshold_mm']:
         return False, None
 
-    return True, (x_pix_int, y_pix_int)
+    # coordinates are in depth map pixel space
+    return True, (x_pixel, y_pixel)

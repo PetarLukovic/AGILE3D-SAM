@@ -14,11 +14,6 @@ from models.position_embedding import PositionEmbeddingCoordsSine, PositionalEnc
 from torch.cuda.amp import autocast
 from .backbone import build_backbone
 
-from interactive_tool.utils import get_obj_color, OBJECT_CLICK_COLOR, BACKGROUND_CLICK_COLOR, UNSELECTED_OBJECTS_COLOR, SELECTED_OBJECT_COLOR, find_nearest
-
-from plukovic.scannet_scene import SensorData
-from plukovic.augument_clicks import process_click, visualize_scene_with_trajectory
-
 import itertools
 
 class Agile3d(nn.Module):
@@ -185,7 +180,7 @@ class Agile3d(nn.Module):
 
         return pcd_features, aux, coordinates, pos_encodings_pcd
 
-    def forward_mask(self, pcd_features, aux, coordinates, pos_encodings_pcd, click_idx=None, click_time_idx=None, sensors=None):
+    def forward_mask(self, pcd_features, aux, coordinates, pos_encodings_pcd, click_idx=None, click_time_idx=None):
 
         batch_size = pcd_features.C[:,0].max() + 1
 
@@ -197,101 +192,33 @@ class Agile3d(nn.Module):
         for b in range(batch_size):
 
             if coordinates.F.is_cuda:
-                features = coordinates.decomposed_features[b]
+                mins = coordinates.decomposed_features[b].min(dim=0)[0].unsqueeze(0)
+                maxs = coordinates.decomposed_features[b].max(dim=0)[0].unsqueeze(0)
             else:
-                features = coordinates.F
-
-            # Initial min and max
-            mins = features.min(dim=0)[0].unsqueeze(0)
-            maxs = features.max(dim=0)[0].unsqueeze(0)
+                mins = coordinates.F.min(dim=0)[0].unsqueeze(0)
+                maxs = coordinates.F.max(dim=0)[0].unsqueeze(0)
 
             click_idx_sample = click_idx[b]
             click_time_idx_sample = click_time_idx[b]
 
+            
+            #print("click_idx_sample: ", click_idx_sample)
+            #print("click_time_idx_sample: ", click_time_idx_sample)
+
             bg_click_idx = click_idx_sample['0']
+
             fg_obj_num = len(click_idx_sample.keys()) - 1
 
-            fg_clicks_coords = torch.vstack([
-                features[click_idx_sample[str(i)], :]
-                for i in range(1, fg_obj_num + 1)
-            ]).unsqueeze(0) 
-            min_values_tensor = torch.tensor(sensors.min_values, device=features.device)
-            fg_clicks_coords = fg_clicks_coords + min_values_tensor
-
-            # Augment the coordinates
-            fg_clicks_raw_coords_list = fg_clicks_coords.squeeze(0).tolist()
-            fg_clicks_coords_list_augmented = []
-
-            bg_clicks_coords_list_augmented = []
-
-            config = {
-                'num_new_clicks_fg': 4,
-                'num_new_clicks_bg': 0,
-                'max_attempts_camera_selection': 50,
-                'max_attemps_pixel_sampling': 5,
-                'object_click_padding': 10,
-                'verbose': True,
-                'visualize': False,
-                'projection_near_m': 0.01,
-                'projection_far_m': 10000.0,
-                'depth_threshold_mm': 50,     
-            }
-
-            for click in fg_clicks_raw_coords_list:
-                new_clicks_fg = []
-                new_clicks_bg = []
-                new_clicks_fg, new_clicks_bg, _ = process_click(sensors, click, config)
-                fg_clicks_coords_list_augmented.extend(new_clicks_fg)
-                bg_clicks_coords_list_augmented.extend(new_clicks_bg)
-
-            if fg_clicks_coords_list_augmented != [] and fg_clicks_coords_list_augmented != None:
-
-                fg_clicks_coords_list_augmented = fg_clicks_coords_list_augmented - sensors.min_values
-                fg_clicks_coords_list_augmented = fg_clicks_coords_list_augmented.tolist()
-
-                for i, click in enumerate(fg_clicks_coords_list_augmented):
-                    if i == 0:
-                        continue
-                    point_idx = find_nearest(coordinates.features, click)
-                    click_idx_sample['1'].append(point_idx)
-                    click_time_idx_sample['1'].append(0)
-
-                new_coords_list = [
-                    features[click_idx_sample[str(i)], :]
-                    for i in range(1, fg_obj_num + 1)
-                ]
-
-                fg_clicks_coords = torch.vstack(new_coords_list).unsqueeze(0)
-                fg_clicks_coords.to(device=pcd_features.device)
-
-                print('Augumented click coordinates fg:', fg_clicks_coords)
-                print('Augumented click indexes fg:', click_idx_sample['1'])
-
-
-            if bg_clicks_coords_list_augmented != [] and bg_clicks_coords_list_augmented != None:
-
-                bg_clicks_coords_list_augmented = bg_clicks_coords_list_augmented - sensors.min_values
-                bg_clicks_coords_list_augmented = bg_clicks_coords_list_augmented.tolist()
-
-                for i, click in enumerate(bg_clicks_coords_list_augmented):
-                    point_idx = find_nearest(coordinates.features, click)
-                    click_idx_sample['0'].append(point_idx)
-                    click_time_idx_sample['0'].append(0)
-
-                new_coords_list = [
-                    features[click_idx_sample['0'], :]
-                ]
-
-                bg_clicks_coords = torch.vstack(new_coords_list).unsqueeze(0)
-                bg_clicks_coords.to(device=pcd_features.device)
-
-                print('Augumented click coordinates bg:', bg_clicks_coords)
-                print('Augumented click indexes bg:', click_idx_sample['0'])
-
-            fg_query_num_split = [len(click_idx_sample[str(i)]) for i in range(1, fg_obj_num + 1)]
+            
+            fg_query_num_split = [len(click_idx_sample[str(i)]) for i in range(1, fg_obj_num+1)]
             fg_query_num = sum(fg_query_num_split)
 
-            fg_clicks_coords = torch.tensor(fg_clicks_coords_list_augmented, dtype=torch.float32).unsqueeze(0).to(pcd_features.device)
+            if coordinates.F.is_cuda:
+                fg_clicks_coords = torch.vstack([coordinates.decomposed_features[b][click_idx_sample[str(i)], :]
+                                        for i in range(1,fg_obj_num+1)]).unsqueeze(0)
+            else:
+                fg_clicks_coords = torch.vstack([coordinates.F[click_idx_sample[str(i)], :]
+                                        for i in range(1,fg_obj_num+1)]).unsqueeze(0)
 
             fg_query_pos = self.pos_enc(fg_clicks_coords.float(),
                                      input_range=[mins, maxs]
@@ -366,7 +293,6 @@ class Agile3d(nn.Module):
                     ) # [num_queries, 128]
 
 
-
                     output = self.c2c_attention[decoder_counter][i](
                         output, # [num_queries, 128]
                         tgt_mask=None,
@@ -407,8 +333,7 @@ class Agile3d(nn.Module):
         
         out= {
             'pred_masks': predictions_mask[-1],
-            'backbone_features': pcd_features,
-            'num_clicks': len(fg_clicks_coords_list_augmented),
+            'backbone_features': pcd_features
         }
 
         if self.aux:
