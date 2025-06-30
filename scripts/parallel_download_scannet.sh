@@ -52,7 +52,7 @@ fi
 # Download validation scans if --val flag is given
 if [ $VAL -eq 1 ]; then
     echo "Downloading validation split file..."
-    #wget https://raw.githubusercontent.com/ScanNet/ScanNet/master/Tasks/Benchmark/scannetv2_val.txt -O "${OUTPUT_DIR}/scannetv2_val.txt"
+    wget https://raw.githubusercontent.com/ScanNet/ScanNet/master/Tasks/Benchmark/scannetv2_val.txt -O "${OUTPUT_DIR}/scannetv2_val.txt"
     echo "Downloaded validation split file."
 
     echo "Processing validation .sens files..."
