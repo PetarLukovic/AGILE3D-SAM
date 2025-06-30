@@ -58,6 +58,8 @@ class InterSingleObj3DSegDataset(Dataset):
         self.crop = crop
         self.transforms = transforms
 
+        print(f"Working on {self.dataset_size}/{original_size}.")
+
     
     def __len__(self):
         return len(self.dataset_list)

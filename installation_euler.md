@@ -14,6 +14,7 @@ cd AGILE3D
 
 ```bash
 module load stack/2024-06 gcc/12.2.0 cuda/11.8.0 eth_proxy
+module load stack/2024-04 gcc/8.5.0 cuda/11.8.0 eth_proxy
 ```
 
 ## 🐍 Create and Configure Conda Environment
@@ -22,7 +23,6 @@ module load stack/2024-06 gcc/12.2.0 cuda/11.8.0 eth_proxy
 conda create -n agile3d python=3.10 pip
 conda activate agile3d
 pip install pip==22.3
-pip install numpy==1.26.4
 ```
 
 ## 🔥 Install PyTorch with CUDA 11.8
@@ -47,6 +47,7 @@ pip install ninja cmake
 pip install setuptools==59.5.0
 conda install openblas-devel -c anaconda
 conda install -c conda-forge openblas
+pip install numpy==1.26.4
 ```
 
 ## 🔍 Locate OpenBLAS Library
@@ -84,7 +85,7 @@ Launch a longer GPU job for evaluation:
 ```bash
 sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=96:00:00 ./scripts/eval_single_scannet40_euler.sh
 
-srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=1024g ./scripts/parallel_download_scannet.sh --val
+srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=256g ./scripts/parallel_download_scannet.sh --val
 ```
 
 
