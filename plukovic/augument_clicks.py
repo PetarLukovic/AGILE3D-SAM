@@ -122,33 +122,36 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
     else:
         num_new_clicks = config['num_new_clicks_bg']
 
-    while len(sampled_clicks) < num_new_clicks:
+    while len(sampled_clicks) < num_new_clicks and attempt < num_new_clicks * 5:
         if foreground:
             print(f"    Attempting click augumentation (foreground), attempt: {attempt}")
         else:
             print(f"    Attempting click augumentation (background), attempt: {attempt}")
 
         attempt += 1
-        for cam_id in tqdm(cameras, desc="        Processing cameras", unit="cam"):
+        for cam_id in tqdm(sam_masks.keys(), desc="        Processing cameras", unit="cam"):
             if len(sampled_clicks) >= num_new_clicks:
                 break
             try:
+                cam_id = int(cam_id)
                 pose = scene_data.__get_camera_pose__(cam_id)
                 fx, fy, cx, cy = scene_data.__get_camera_intrinsics__(cam_id)
                 depth_raw = scene_data.__get_camera_depth__(cam_id)
-                mask = sam_masks[str(cam_id)].to(config['device'])
+                mask_og = sam_masks[str(cam_id)].to(config['device'])
 
                 for _ in range(config['max_attemps_pixel_sampling']):
 
                     if foreground:
-                        y, x = sample_foreground(mask)
+                        y, x, mask = sample_foreground(mask_og)
                     else:
-                        y, x = sample_background(mask)
+                        y, x, mask = sample_background(mask_og)
 
                     d = depth_raw[y.item(), x.item()] / 1000.0
 
-                    if d > 0:
+                    if d > config['projection_near_m'] and d < config['projection_far_m']:
                         break
+                    else:
+                        d = None
 
                 if d == None:
                     print(f"        Failed to sample a valid pixel after {config['max_attemps_pixel_sampling']} attempts on camera {cam_id}. Skipping this camera.")
@@ -161,7 +164,7 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
                 point_world = torch.matmul(pose, point_cam)
                 sampled_clicks.append(point_world[:3].cpu().tolist())
 
-                if config['visualize'] and foreground:
+                if config['visualize']:
                     point = (x, y)
                     visualize_camera_with_mask_with_point(scene_data, cam_id, mask, point)
 
@@ -216,8 +219,8 @@ def process_click(scene_data, click_coordinate, config):
 
         clicks_bg.extend(new_clicks)
     
-    if config['visualize']:
-        visualize_scene_with_trajectory(scene_data, selected_cameras, [click_coordinate.cpu().tolist()] + clicks_fg, clicks_bg)
+    #if config['visualize']:
+    visualize_scene_with_trajectory(scene_data, selected_cameras, [click_coordinate.cpu().tolist()] + clicks_fg, clicks_bg)
 
     if config['verbose']: print(f"Done processing click: {click_coordinate}, on scene: {scene_data.scene_name}")
 

@@ -173,9 +173,9 @@ def Evaluate(model, data_loader, args, device):
                 sample_raw_coords = raw_coords[sample_mask]
                 sample_pred_full = sample_pred[inverse_map[idx]]
 
-                if current_num_clicks >= 1:
-                    visualize_iou_scene(raw_coords, sample_pred, sample_labels)
-                    visualize_gt_scene(raw_coords, sample_labels)
+                #if current_num_clicks >= 1:
+                    #visualize_iou_scene(raw_coords, sample_pred, sample_labels)
+                    #visualize_gt_scene(raw_coords, sample_labels)
 
                 sample_labels_full = labels_full[idx]
                 sample_iou, _ = mean_iou_scene(sample_pred_full, sample_labels_full)

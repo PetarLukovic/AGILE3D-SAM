@@ -25,7 +25,7 @@ class InterSingleObj3DSegDataset(Dataset):
         self.scan_folder = scan_folder
         
         scene_name_start = 'scene0011_00'
-        object_id_start = '2'
+        object_id_start = '1'
         
         scene_name_end = 'scene0011_00'
         object_id_end = '2'
@@ -48,7 +48,7 @@ class InterSingleObj3DSegDataset(Dataset):
                 break
 
         if start_index is not None:
-            self.dataset_list = self.dataset_list[start_index:end_index]
+            self.dataset_list = self.dataset_list[start_index:]
         else:
             print(f"Warning: Pair ({scene_name_start}, {object_id_start}) not found. Dataset will be empty.")
             self.dataset_list = []
