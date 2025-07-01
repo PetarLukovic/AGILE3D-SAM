@@ -5,12 +5,22 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from utils.ply import read_ply
+from pathlib import Path
+
+from plukovic.scannet.process_sens import process_scan
+
 
 class SensorData(Dataset):
     def __init__(self, hdf5_path, transform=None):
         super().__init__()
-        
-        self.h5_file = h5py.File(hdf5_path, 'r')  # Open and store the handle
+        try:
+            self.h5_file = h5py.File(hdf5_path, 'r')  # Try to open HDF5
+        except Exception as e:
+            scan = os.path.splitext(os.path.basename(hdf5_path))[0]
+            hdf5_path_obj = Path(hdf5_path)
+            scannet_folder = Path(*hdf5_path_obj.parts[:-3])
+            process_scan(scan=scan, scannet_folder=str(scannet_folder))
+
         self.rgb = self.h5_file['rgb']                    # (N, H, W, 3), uint8   
         self.depth = self.h5_file['depth']                # (N, H, W), float32
         self.poses = self.h5_file['poses']                # (N, 4, 4), float32

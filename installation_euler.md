@@ -85,7 +85,7 @@ Launch a longer GPU job for evaluation:
 ```bash
 sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=96:00:00 ./scripts/eval_single_scannet40_euler.sh
 
-srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=256g ./scripts/parallel_download_scannet.sh --val
+srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=512g ./scripts/parallel_download_scannet.sh --val
 ```
 
 

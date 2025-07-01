@@ -11,11 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 
 from plukovic.scannet import download_scannet
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--scannet_folder', required=True, help='Path to scans folder.')
-parser.add_argument('--scans_file', required=True, help='Path to scans .txt file.')
-args = parser.parse_args()
-
 # eg. python3 plukovic/scannet/process_sens.py --scannet_folder "/cluster/scratch/plukovic/scannet/scannet_v2_test" --scans_file "/cluster/scratch/plukovic/scannet/scannet_v2_test/scannetv2_val.txt"
 #num_workers = os.cpu_count()
 num_workers = 8
@@ -80,6 +75,11 @@ def process_scan(scan, scannet_folder):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--scannet_folder', required=True, help='Path to scans folder.')
+    parser.add_argument('--scans_file', required=True, help='Path to scans .txt file.')
+    args = parser.parse_args()
+
     with open(args.scans_file, 'r') as f:
         scans = [line.strip() for line in f.readlines()]
 
