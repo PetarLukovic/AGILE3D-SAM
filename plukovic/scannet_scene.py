@@ -20,6 +20,7 @@ class SensorData(Dataset):
             hdf5_path_obj = Path(hdf5_path)
             scannet_folder = Path(*hdf5_path_obj.parts[:-3])
             process_scan(scan=scan, scannet_folder=str(scannet_folder))
+            self.h5_file = h5py.File(hdf5_path, 'r')
 
         self.rgb = self.h5_file['rgb']                    # (N, H, W, 3), uint8   
         self.depth = self.h5_file['depth']                # (N, H, W), float32
