@@ -24,7 +24,7 @@ class InterSingleObj3DSegDataset(Dataset):
         self.quantization_size = quantization_size
         self.scan_folder = scan_folder
         
-        scene_name_start = 'scene0019_01'
+        scene_name_start = 'scene0338_00'
         object_id_start = '1'
         
         scene_name_end = 'scene0011_00'
