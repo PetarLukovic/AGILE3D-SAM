@@ -21,9 +21,9 @@ def process_scan(scan, scannet_folder):
     sens_path = os.path.join(scan_path, scan + ".sens")
     hdf5_file = os.path.join(scan_path, scan + '.hdf5')
 
-    if os.path.exists(hdf5_file):
-        print(f"    Scan {scan} already has hdf5 file at {hdf5_file}, skipping download.")
-        return
+    #if os.path.exists(hdf5_file):
+    #    print(f"    Scan {scan} already has hdf5 file at {hdf5_file}, skipping download.")
+    #    return
 
     if os.path.exists(sens_path):
         print(f"    Scan {scan} already exists at {scan_path}, skipping download.")
