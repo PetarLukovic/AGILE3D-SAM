@@ -19,8 +19,6 @@ from plukovic.projection_utils import (
     check_camera_visibility
 )
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 def subsample_cameras(scene_data, cameras):
     return cameras[::2]
 
@@ -63,12 +61,12 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     if config['visualize']:
         visualize_scene_with_trajectory(scene_data, camera_indices.cpu().numpy(), [click_coordinate.cpu().numpy()], [], subsample_frustrums=True)
 
-    print(f"    Original number of cameras: {len(camera_indices)}")
+    if config['verbose']: print(f"    Original number of cameras: {len(camera_indices)}")
     camera_indices = z_filter(scene_data, camera_indices, click_coordinate)
-    print(f"    Number of camera after z-visibility filter: {len(camera_indices)}")
+    if config['verbose']: print(f"    Number of camera after z-visibility filter: {len(camera_indices)}")
     camera_indices = angle_sort(scene_data, camera_indices, click_coordinate)
     camera_indices = subsample_cameras(scene_data, camera_indices)
-    print(f"    Number of cameras after subsampling: {len(camera_indices)}")
+    if config['verbose']: print(f"    Number of cameras after subsampling: {len(camera_indices)}")
 
     if config['visualize']:
         visualize_scene_with_trajectory(scene_data, camera_indices.cpu().numpy(), [click_coordinate.cpu().numpy()], [], subsample_frustrums=True)
@@ -76,15 +74,15 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     visible_cameras = []
     pixel_coords = []
     i = 0
-
+    
     if config['num_new_clicks_fg'] > config['num_new_clicks_bg']:
-        print(f"    Requested number of foreground pixels is larger, extracting {config['num_new_clicks_fg']} cameras.")
+        if config['verbose']: print(f"    Requested number of foreground pixels is larger, extracting {config['num_new_clicks_fg']} cameras.")
         num_new_clicks = config['num_new_clicks_fg']
     else:
-        print(f"    Requested number of background pixels is larger, extracting {config['num_new_clicks_bg']} cameras.")
+        if config['verbose']: print(f"    Requested number of background pixels is larger, extracting {config['num_new_clicks_bg']} cameras.")
         num_new_clicks = config['num_new_clicks_bg']
 
-    for _ in tqdm(range(min(config['max_attempts_camera_selection'], len(camera_indices) - i)), desc="    Finding visible cameras"):
+    for _ in tqdm(range(min(config['max_attempts_camera_selection'], len(camera_indices) - i)), desc="    Finding visible cameras", disable=not config['verbose']):
         if len(visible_cameras) >= num_new_clicks:
             break
 
@@ -97,7 +95,7 @@ def find_visible_cameras(scene_data, click_coordinate, config):
             visible_cameras.append(idx)
             pixel_coords.append(pixel)
 
-    if len(visible_cameras) < num_new_clicks:
+    if len(visible_cameras) < num_new_clicks and config['verbose']:
         print(f"        Warning: Only found {len(visible_cameras)} visible cameras out of {num_new_clicks} requested.")
     
     if config['visualize']:
@@ -108,7 +106,7 @@ def find_visible_cameras(scene_data, click_coordinate, config):
 
 def augment_click(scene_data, cameras, sam_masks, config, foreground=True): 
 
-    if cameras is None or len(cameras) == 0:
+    if cameras is None or len(cameras) == 0 and config['verbose']:
         print("    No cameras selected. Skipping augmentation mask extraction.")
         return None
     
@@ -123,13 +121,14 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
         num_new_clicks = config['num_new_clicks_bg']
 
     while len(sampled_clicks) < num_new_clicks and attempt < num_new_clicks * 5:
-        if foreground:
-            print(f"    Attempting click augumentation (foreground), attempt: {attempt}")
-        else:
-            print(f"    Attempting click augumentation (background), attempt: {attempt}")
+        if config['verbose']:
+            if foreground:
+                print(f"    Attempting click augumentation (foreground), attempt: {attempt}")
+            else:
+                print(f"    Attempting click augumentation (background), attempt: {attempt}")
 
         attempt += 1
-        for cam_id in tqdm(sam_masks.keys(), desc="        Processing cameras", unit="cam"):
+        for cam_id in tqdm(sam_masks.keys(), desc="        Processing cameras", unit="cam", disable=not config['verbose']):
             if len(sampled_clicks) >= num_new_clicks:
                 break
             try:
@@ -137,7 +136,11 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
                 pose = scene_data.__get_camera_pose__(cam_id)
                 fx, fy, cx, cy = scene_data.__get_camera_intrinsics__(cam_id)
                 depth_raw = scene_data.__get_camera_depth__(cam_id)
-                mask_og = sam_masks[str(cam_id)].to(config['device'])
+
+                if foreground:
+                    mask_og = sam_masks[str(cam_id)]['high_granularity'].to(config['device'])
+                else:
+                    mask_og = sam_masks[str(cam_id)]['low_granularity'].to(config['device'])
 
                 for _ in range(config['max_attemps_pixel_sampling']):
 
@@ -172,12 +175,15 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
                 print(f"    Error processing camera {cam_id}: {e}")
                 continue
 
-    if len(sampled_clicks) < num_new_clicks:
+    if len(sampled_clicks) < num_new_clicks and config['verbose']:
         print(f"    Only {len(sampled_clicks)} clicks collected (requested {num_new_clicks}).")
 
     return sampled_clicks
 
 def process_click(scene_data, click_coordinate, config):
+
+    if not config['verbose']:
+        print("Verbose parameter is False. Supressing all output ...")
 
     click_coordinate = torch.from_numpy(click_coordinate).to(config['device'])
     scene_data.DEVICE = click_coordinate.device
@@ -219,8 +225,8 @@ def process_click(scene_data, click_coordinate, config):
 
         clicks_bg.extend(new_clicks)
     
-    #if config['visualize']:
-    visualize_scene_with_trajectory(scene_data, selected_cameras, [click_coordinate.cpu().tolist()] + clicks_fg, clicks_bg)
+    if config['visualize']:
+        visualize_scene_with_trajectory(scene_data, selected_cameras, [click_coordinate.cpu().tolist()] + clicks_fg, clicks_bg)
 
     if config['verbose']: print(f"Done processing click: {click_coordinate}, on scene: {scene_data.scene_name}")
 

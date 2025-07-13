@@ -29,7 +29,7 @@ def create_sphere_at_point(center, radius=0.1, color=[1, 0, 0]):
     return sphere
 
 def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates_fg, click_coordinates_bg, subsample_frustrums=False):
-    ply_file = scene_data.ply_file
+    ply_file = scene_data.ply_file_agile3d
     print(f"    Visualizing scene: {scene_data.scene_name} with PLY file: {ply_file}")
 
     if not os.path.exists(ply_file):

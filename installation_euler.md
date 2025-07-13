@@ -86,6 +86,8 @@ Launch a longer GPU job for evaluation:
 sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=96:00:00 ./scripts/eval_single_scannet40_euler.sh
 
 srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=512g ./scripts/parallel_download_scannet.sh --val
+
+rsync -av --include '*/' --include '*.ply' --exclude '*' /home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet/scans/ plukovic@euler:/cluster/scratch/plukovic/scannet/scannet_v2/scans/
 ```
 
 

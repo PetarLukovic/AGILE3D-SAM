@@ -22,7 +22,7 @@ from utils.seg import mean_iou_scene, extend_clicks, get_simulated_clicks
 import utils.misc as utils
 from datetime import datetime
 
-from evaluation.evaluator_SO import EvaluatorSO
+from evaluation.evaluator_SO_agile3d import EvaluatorSO
 import wandb
 import os
 
@@ -173,7 +173,8 @@ def Evaluate(model, data_loader, args, device):
                 sample_raw_coords = raw_coords[sample_mask]
                 sample_pred_full = sample_pred[inverse_map[idx]]
 
-                #if current_num_clicks >= 1:
+                if current_num_clicks >= 1:
+                    x=1
                     #visualize_iou_scene(raw_coords, sample_pred, sample_labels)
                     #visualize_gt_scene(raw_coords, sample_labels)
 

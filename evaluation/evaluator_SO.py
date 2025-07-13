@@ -1,3 +1,4 @@
+import os
 import argparse
 import numpy as np
 from collections import defaultdict
@@ -8,9 +9,6 @@ from evaluation.labels import labels
 """
 Evaluator for interactive single-object segmentation
 """
-
-max_num_clicks = 1
-
 class EvaluatorSO():
 
     def __init__(
@@ -71,9 +69,6 @@ class EvaluatorSO():
                 num_clicks = splits[3]
                 iou=splits[4]
 
-                if num_clicks != 0 and len(splits) > 5:
-                    num_clicks = splits[5]
-
                 if (scene_name + '_' + object_id) in objects:
                     if (scene_name + '_' + object_id) not in all_object:
                         all_object[(scene_name + '_' + object_id)]=1
@@ -87,7 +82,7 @@ class EvaluatorSO():
                             num_objects+=1
                             ordered_clicks.append(float(num_clicks))
 
-                    elif int(num_clicks)>=max_num_clicks and (float(iou)>=0):
+                    elif int(num_clicks)>=10 and (float(iou)>=0):
                         if (scene_name+'_'+object_id) not in results_dict_KatIOU:
                             results_dict_KatIOU[scene_name+'_'+object_id] = float(num_clicks)
                             num_objects += 1
@@ -99,7 +94,7 @@ class EvaluatorSO():
                     results_dict_per_click[num_clicks]+=1
                     results_dict_per_click_iou[num_clicks]+=float(iou)
                 else:
-                    #print(scene_name + ' ' + object_id)
+                    #print(scene_name + '_' + object_id)
                     pass
 
         if len(results_dict_KatIOU.values())==0:
@@ -107,14 +102,15 @@ class EvaluatorSO():
             return 0
 
 
-        click_at_IoU = sum(results_dict_KatIOU.values())/len(results_dict_KatIOU.values())
+        click_at_IoU =sum(results_dict_KatIOU.values())/len(results_dict_KatIOU.values())
         #print('click@', MAX_IOU, click_at_IoU, num_objects, len(results_dict_KatIOU.values()))
+
 
         return ordered_clicks, sum(results_dict_KatIOU.values()), len(results_dict_KatIOU.values()), results_dict_per_click_iou, results_dict_per_click 
 
 
     def eval_results(self):
-        print('--------- Evaluating -----------')
+        print(f'--------- Evaluating {os.path.basename(self.result_file)}-----------')
         NOC = {}
         NOO = {}
       
@@ -150,15 +146,15 @@ class EvaluatorSO():
             'NoC@85': sum(NOC[0.85])/sum(NOO[0.85]),
             'NoC@90': sum(NOC[0.9])/sum(NOO[0.9]),
             'IoU@1': IOU_PER_CLICK_dict['1']/NOO_PER_CLICK_dict['1'],
-            #'IoU@2': IOU_PER_CLICK_dict['2']/NOO_PER_CLICK_dict['2'],
-            #'IoU@3': IOU_PER_CLICK_dict['3']/NOO_PER_CLICK_dict['3'],
+            'IoU@2': IOU_PER_CLICK_dict['2']/NOO_PER_CLICK_dict['2'],
+            'IoU@3': IOU_PER_CLICK_dict['3']/NOO_PER_CLICK_dict['3'],
             'IoU@5': IOU_PER_CLICK_dict['5']/NOO_PER_CLICK_dict['5'],
-            #'IoU@10': IOU_PER_CLICK_dict['10']/NOO_PER_CLICK_dict['10'],
-            #'IoU@15': IOU_PER_CLICK_dict['15']/NOO_PER_CLICK_dict['15']
+            'IoU@10': IOU_PER_CLICK_dict['10']/NOO_PER_CLICK_dict['10']
         }
-        #print('****************************')
+
         for key, value in results_dict.items():
             print(f'{key}: {value:.4f}')
+
 
         return results_dict
 

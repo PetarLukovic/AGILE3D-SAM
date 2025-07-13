@@ -22,32 +22,39 @@ def sample_foreground(mask):
     y, x = coords[0], coords[1]
     return y, x, mask
 
-def sample_background(mask, border_width=50):
+def sample_background(mask, border_width=50, erosion_iters=10):
     bin_mask = (mask > 0.5).float()
-    
+
     pad = border_width
     bin_mask_padded = F.pad(bin_mask.unsqueeze(0).unsqueeze(0), (pad, pad, pad, pad), mode='constant', value=0)
-    
+
     kernel = torch.ones((1, 1, 3, 3), device=mask.device)
-    
+
     # Dilate mask by border_width pixels
     dilated = bin_mask_padded
     for _ in range(border_width):
         dilated = F.conv2d(dilated, kernel, padding=1)
         dilated = (dilated > 0).float()
     dilated = dilated.squeeze(0).squeeze(0)[pad:-pad, pad:-pad]
-    
+
     # Border outside = dilated mask minus original mask
     outside_border_mask = (dilated - bin_mask) > 0
-    
-    border_pixels = torch.nonzero(outside_border_mask)
+
+    # --- Erode the outside_border_mask ---
+    eroded = outside_border_mask.float().unsqueeze(0).unsqueeze(0)
+    for _ in range(erosion_iters):
+        eroded = F.conv2d(eroded, kernel, padding=1)
+        eroded = (eroded == kernel.sum()).float()
+    eroded = eroded.squeeze(0).squeeze(0)
+
+    border_pixels = torch.nonzero(eroded)
     if border_pixels.size(0) == 0:
-        raise ValueError("No border pixels found outside the object within the given border width.")
-    
+        raise ValueError("No border pixels found after erosion.")
+
     selected_index = random.randint(0, border_pixels.size(0) - 1)
     y, x = border_pixels[selected_index]
-    
-    return y, x, outside_border_mask
+
+    return y, x, eroded
 
 """
 def sample_background(mask):
@@ -59,7 +66,7 @@ def sample_background(mask):
 """
 
 def extract_sam_masks_v1(scene_data, cameras, pixels, config):
-    if cameras is None or len(cameras) == 0:
+    if cameras is None or len(cameras) == 0 and config['verbose']:
         print("    No cameras selected. Skipping SAM mask extraction.")
         return {}
     
@@ -69,11 +76,9 @@ def extract_sam_masks_v1(scene_data, cameras, pixels, config):
     sam = sam_model_registry[model_type](checkpoint=sam_checkpoint).to(config['device'])
     predictor = SamPredictor(sam)
 
-    masks_list = []
-    sizes = []
-    cam_ids = []
+    masks_out = {}
 
-    for cam_id, pixel in tqdm(zip(cameras, pixels), total=len(cameras), desc="    Extracting SAM masks"):
+    for cam_id, pixel in tqdm(zip(cameras, pixels), total=len(cameras), desc="    Extracting SAM masks", disable=not config['verbose']):
         img = scene_data.__get_camera_rgb__(cam_id)
 
         x = pixel[0].to(config['device'])
@@ -91,22 +96,22 @@ def extract_sam_masks_v1(scene_data, cameras, pixels, config):
             multimask_output=True,
         )
 
-        best_mask = masks[np.argmax(scores)]
-        best_mask_tensor = torch.tensor(best_mask, dtype=torch.uint8)
-        masks_list.append(best_mask_tensor)
-        sizes.append(best_mask_tensor.sum().item())
-        cam_ids.append(cam_id)
+        hg_mask = torch.tensor(masks[0], dtype=torch.uint8)
+        lg_mask = torch.tensor(masks[2], dtype=torch.uint8)
+
+        masks_out[str(cam_id.item())] = {
+            "high_granularity": hg_mask,
+            "low_granularity": lg_mask,
+        }
 
         if config['visualize']:
-            visualize_camera_with_mask_with_point(scene_data, cam_id, best_mask_tensor, (x.cpu().item(), y.cpu().item()))
+            visualize_camera_with_mask_with_point(scene_data, cam_id, hg_mask, (x.cpu().item(), y.cpu().item()))
+            visualize_camera_with_mask_with_point(scene_data, cam_id, lg_mask, (x.cpu().item(), y.cpu().item()))
 
-    if not masks_list:
+    if not masks_out:
         return {}
-
-    median_size = int(np.median(sizes))
-    closest_idx = min(range(len(sizes)), key=lambda i: abs(sizes[i] - median_size))
-
-    return {str(cam_ids[closest_idx].item()): masks_list[closest_idx]}
+    
+    return masks_out
 
 
 """
