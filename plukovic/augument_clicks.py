@@ -75,12 +75,14 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     pixel_coords = []
     i = 0
     
-    if config['num_new_clicks_fg'] > config['num_new_clicks_bg']:
-        if config['verbose']: print(f"    Requested number of foreground pixels is larger, extracting {config['num_new_clicks_fg']} cameras.")
-        num_new_clicks = config['num_new_clicks_fg']
-    else:
-        if config['verbose']: print(f"    Requested number of background pixels is larger, extracting {config['num_new_clicks_bg']} cameras.")
-        num_new_clicks = config['num_new_clicks_bg']
+    #if config['num_new_clicks_fg'] > config['num_new_clicks_bg']:
+    #    if config['verbose']: print(f"    Requested number of foreground pixels is larger, extracting {config['num_new_clicks_fg']} cameras.")
+    #    num_new_clicks = config['num_new_clicks_fg']
+    #else:
+    #    if config['verbose']: print(f"    Requested number of background pixels is larger, extracting {config['num_new_clicks_bg']} cameras.")
+    #    num_new_clicks = config['num_new_clicks_bg']
+
+    num_new_clicks = 1
 
     for _ in tqdm(range(min(config['max_attempts_camera_selection'], len(camera_indices) - i)), desc="    Finding visible cameras", disable=not config['verbose']):
         if len(visible_cameras) >= num_new_clicks:

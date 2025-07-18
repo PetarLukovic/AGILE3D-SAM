@@ -88,6 +88,9 @@ sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --
 srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=512g ./scripts/parallel_download_scannet.sh --val
 
 rsync -av --include '*/' --include '*.ply' --exclude '*' /home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet/scans/ plukovic@euler:/cluster/scratch/plukovic/scannet/scannet_v2/scans/
+
+scp euler:/cluster/scratch/plukovic/scannet/scannet_v2/results/* /home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet/results/
+
 ```
 
 
