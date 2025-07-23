@@ -175,9 +175,9 @@ def Evaluate(model, data_loader, args, device):
 
                 if current_num_clicks >= 5:
                     x=1
-                    visualize_iou_scene(raw_coords, sample_pred, sample_labels)
-                    visualize_gt_scene(raw_coords, sample_labels)
-                    visualize_gt_scene(raw_coords, sample_pred)
+                    #visualize_iou_scene(raw_coords, sample_pred, sample_labels)
+                    #visualize_gt_scene(raw_coords, sample_labels)
+                    #visualize_gt_scene(raw_coords, sample_pred)
 
                 sample_labels_full = labels_full[idx]
                 sample_iou, _ = mean_iou_scene(sample_pred_full, sample_labels_full)

@@ -13,7 +13,10 @@ cd AGILE3D
 ## ⚙️ Load Required Modules
 
 ```bash
+# maybe needed for later
 module load stack/2024-06 gcc/12.2.0 cuda/11.8.0 eth_proxy
+
+# use this to install
 module load stack/2024-04 gcc/8.5.0 cuda/11.8.0 eth_proxy
 ```
 
@@ -28,8 +31,11 @@ pip install pip==22.3
 ## 🔥 Install PyTorch with CUDA 11.8
 
 ```bash
-pip install torch==2.0.0 torchvision==0.15.1 torchaudio==2.0.1 \
-  --index-url https://download.pytorch.org/whl/cu118
+# euler
+pip install torch==2.0.0 torchvision==0.15.1 --index-url https://download.pytorch.org/whl/cu118
+
+# local
+pip install torch==1.12.1+cu116 torchvision==0.13.1+cu116 -f https://download.pytorch.org/whl/torch_stable.html
 ```
 
 ## 🧪 Interactive GPU Session
@@ -66,9 +72,14 @@ export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 ## ⚙️ Install MinkowskiEngine
 
 ```bash
+# euler
 pip install -U git+https://github.com/NVIDIA/MinkowskiEngine -v --no-deps \
   --install-option="--blas_include_dirs=${CONDA_PREFIX}/include" \
   --install-option="--blas=openblas"
+
+# local
+pip install -U git+https://github.com/NVIDIA/MinkowskiEngine -v --no-deps --install-option="--blas_include_dirs=${CONDA_PREFIX}/include" --install-option="--blas=openblas"
+
 ```
 
 ## ➕ Install Additional Packages
@@ -83,13 +94,16 @@ conda install opencv
 Launch a longer GPU job for evaluation:
 
 ```bash
-sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=96:00:00 ./scripts/eval_single_scannet40_euler.sh
+
+sbatch --partition=gpu --gpus=rtx_3090:1 --cpus-per-task=1 --mem-per-cpu=256G --time=72:00:00 ./scripts/eval_single_scannet40_euler.sh
 
 srun --time=72:00:00 --cpus-per-task=1 --mem-per-cpu=512g ./scripts/parallel_download_scannet.sh --val
 
 rsync -av --include '*/' --include '*.ply' --exclude '*' /home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet/scans/ plukovic@euler:/cluster/scratch/plukovic/scannet/scannet_v2/scans/
 
 scp euler:/cluster/scratch/plukovic/scannet/scannet_v2/results/* /home/plukovic/interactive_segmentation/AGILE3D-SAM/data/scannet/results/
+
+scp /home/plukovic/interactive_segmentation/AGILE3D-SAM/weights/* euler:/cluster/home/plukovic/AGILE3D-SAM/weights/
 
 ```
 

@@ -11,12 +11,12 @@ config = {
     'max_attempts_camera_selection': 50,
     'max_attemps_pixel_sampling': 5,
     'object_click_padding': 5,
-    'verbose': True,
-    'visualize': True,
+    'verbose': False,
+    'visualize': False,
     'projection_near_m': 0.1,
     'projection_far_m': 5.0,
     'depth_threshold_mm': 30,
-    'device': "cpu"
+    'device': "cuda"
 }
 
 #GT + prediction in green + mistakes in red

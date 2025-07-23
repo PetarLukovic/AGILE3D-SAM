@@ -47,6 +47,9 @@ class InterSingleObj3DSegDataset(Dataset):
                 end_index = i + 1
                 break
 
+        start_index = 0
+        end_index = 2500
+        
         if start_index is not None:
             self.dataset_list = self.dataset_list[start_index:end_index]
         else:
@@ -58,7 +61,7 @@ class InterSingleObj3DSegDataset(Dataset):
         self.crop = crop
         self.transforms = transforms
 
-        print(f"Working on {self.dataset_size}/{original_size}.")
+        print(f"Working on {self.dataset_size}/{original_size}. Indexes {start_index} to {end_index-1}.")
 
     
     def __len__(self):
