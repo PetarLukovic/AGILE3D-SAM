@@ -20,16 +20,20 @@ pip install torch==1.12.1 torchvision==0.13.1 --index-url https://download.pytor
 ### Step 3: install Minkowski
 3.1 Prepare:
 ```shell
-conda install -c intel mkl mkl-include
+pip install ninja cmake setuptools==59.5.0 numpy==1.26.4
+conda install -c conda-forge mkl mkl-include
 ```
+
 3.2 Install:
 ```shell
 git clone https://github.com/NVIDIA/MinkowskiEngine.git
 cd MinkowskiEngine
 python setup.py install --blas=mkl --cpu_only 
 ```
+
 If you run into issues, please refer to MinkowskiEngine's [official instructions for CPU only compilation](https://nvidia.github.io/MinkowskiEngine/quick_start.html#cpu-only-compilation).
 ### Step 4: install other packages
 ```shell
-pip install open3d
+pip install open3d wandb h5py segment_anything imageio pypng scikit-learn
+conda install opencv
 ```

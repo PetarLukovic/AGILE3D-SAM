@@ -4,8 +4,8 @@ from interactive_tool.utils import find_nearest
 from plukovic.augument_clicks import process_click
 
 config = {
-    'num_new_clicks_fg': 2,
-    'num_new_clicks_bg': 2,
+    'num_new_clicks_fg': 4,
+    'num_new_clicks_bg': 5,
     'max_attempts_camera_selection': 100,
     'max_attemps_pixel_sampling': 5,
     'object_click_padding': 5,

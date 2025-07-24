@@ -25,10 +25,10 @@ class InterSingleObj3DSegDataset(Dataset):
         self.scan_folder = scan_folder
         
         scene_name_start = 'scene0011_00'
-        object_id_start = '2'
+        object_id_start = '1'
         
         scene_name_end = 'scene0011_00'
-        object_id_end = '2'
+        object_id_end = '10'
 
         self.dataset_list = np.load(object_list, allow_pickle=True)
         original_size = len(self.dataset_list)
