@@ -27,8 +27,8 @@ import wandb
 import os
 
 from plukovic.simulate_clicks import get_simualted_clicks_scene_sam
-from plukovic.scannet_scene import SensorData
-from plukovic.visualisation import visualize_iou_scene, visualize_gt_scene
+from plukovic.scannet.scannet_scene import SensorData
+from plukovic.visualisation import visualize_iou_scene, visualize_gt_scene, visualize_comparison_scene
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Evaluation', add_help=False)
@@ -175,9 +175,9 @@ def Evaluate(model, data_loader, args, device):
 
                 if current_num_clicks >= 5:
                     x=1
+                    #visualize_comparison_scene(raw_coords, sample_pred, sample_labels)
                     #visualize_iou_scene(raw_coords, sample_pred, sample_labels)
                     #visualize_gt_scene(raw_coords, sample_labels)
-                    #visualize_gt_scene(raw_coords, sample_pred)
 
                 sample_labels_full = labels_full[idx]
                 sample_iou, _ = mean_iou_scene(sample_pred_full, sample_labels_full)
@@ -199,8 +199,6 @@ def Evaluate(model, data_loader, args, device):
                 print(f"-----------------------------------------------------------------------------------------")
 
     f.close()
-    #evaluator = EvaluatorSO(args.dataset, args.val_list, args.val_list_classes, results_file, [0.5,0.65,0.8,0.85,0.9])
-    #results_dict = evaluator.eval_results()
 
 def main(args):
 

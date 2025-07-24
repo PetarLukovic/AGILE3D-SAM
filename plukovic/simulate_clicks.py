@@ -1,5 +1,3 @@
-import numpy as np
-import torch
 import random
 
 from interactive_tool.utils import find_nearest
@@ -8,7 +6,7 @@ from plukovic.augument_clicks import process_click
 config = {
     'num_new_clicks_fg': 2,
     'num_new_clicks_bg': 2,
-    'max_attempts_camera_selection': 50,
+    'max_attempts_camera_selection': 100,
     'max_attemps_pixel_sampling': 5,
     'object_click_padding': 5,
     'verbose': False,
@@ -16,10 +14,13 @@ config = {
     'projection_near_m': 0.1,
     'projection_far_m': 5.0,
     'depth_threshold_mm': 30,
-    'device': "cuda"
+    'num_cameras': 1,
+    'sampling': 'random',
+    'num_samples': 20,
+    'device': "cpu"
 }
 
-#GT + prediction in green + mistakes in red
+# GT + prediction in green + mistakes in red
 
 def get_simualted_clicks_scene_sam(raw_coords, click_idx, sensors):
 

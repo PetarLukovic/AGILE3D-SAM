@@ -1,58 +1,27 @@
 import torch
 import random
-import numpy as np
 from tqdm import tqdm
 
 from plukovic.visualisation import (
     visualize_scene_with_trajectory,
     visualize_camera_with_point,
-    visualize_camera_with_mask_with_point
+    visualize_camera_with_mask_with_points
 )
 
-from plukovic.sam_utils import (
-    extract_sam_masks_v1,
-    sample_foreground,
-    sample_background,
+from plukovic.sam_extraction import (
+    extract_sam_masks,
 )
 
-from plukovic.projection_utils import (
-    check_camera_visibility
+from plukovic.projection import (
+    check_camera_visibility,
+    z_filter,
+    angle_sort
 )
 
-def subsample_cameras(scene_data, cameras):
-    return cameras[::2]
-
-def z_filter(scene_data, cameras, point_3d):
-    poses = torch.from_numpy(scene_data.poses[cameras.cpu().numpy()]).to(point_3d.device)
-
-    R_all = poses[:, :3, :3]
-    t_all = poses[:, :3, 3] 
-
-    point_rel = point_3d.unsqueeze(0) - t_all 
-    R_transpose = R_all.transpose(1, 2)       
-    point_cam_all = torch.bmm(R_transpose, point_rel.unsqueeze(2)).squeeze(2)
-
-    visible_mask = point_cam_all[:, 2] > 0
-    visible_cameras = cameras[visible_mask]
-
-    return visible_cameras
-
-def angle_sort(scene_data, cameras, point_3d):
-    poses = torch.from_numpy(scene_data.poses[cameras.cpu().numpy()]).to(point_3d.device)
-
-    R_all = poses[:, :3, :3] 
-    t_all = poses[:, :3, 3]   
-
-    view_dirs = -R_all[:, :, 2] 
-    cam_to_point = point_3d.unsqueeze(0) - t_all 
-    cam_to_point = cam_to_point / cam_to_point.norm(dim=1, keepdim=True) 
-
-    cosines_vals = (view_dirs * cam_to_point).sum(dim=1) 
-
-    sorted_indices = torch.argsort(cosines_vals)
-    sorted_cameras = cameras[sorted_indices]
-
-    return sorted_cameras
+from plukovic.sampler import (
+    sample_cameras,
+    sample_masks,
+)
 
 def find_visible_cameras(scene_data, click_coordinate, config):
 
@@ -65,7 +34,7 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     camera_indices = z_filter(scene_data, camera_indices, click_coordinate)
     if config['verbose']: print(f"    Number of camera after z-visibility filter: {len(camera_indices)}")
     camera_indices = angle_sort(scene_data, camera_indices, click_coordinate)
-    camera_indices = subsample_cameras(scene_data, camera_indices)
+    camera_indices = sample_cameras(scene_data, camera_indices)
     if config['verbose']: print(f"    Number of cameras after subsampling: {len(camera_indices)}")
 
     if config['visualize']:
@@ -82,10 +51,17 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     #    if config['verbose']: print(f"    Requested number of background pixels is larger, extracting {config['num_new_clicks_bg']} cameras.")
     #    num_new_clicks = config['num_new_clicks_bg']
 
-    num_new_clicks = 1
+    num_new_clicks = config['num_cameras']
+
+    if config['verbose']: print(f"    Extracting {num_new_clicks} cameras.")
 
     for _ in tqdm(range(min(config['max_attempts_camera_selection'], len(camera_indices) - i)), desc="    Finding visible cameras", disable=not config['verbose']):
         if len(visible_cameras) >= num_new_clicks:
+            break
+
+        if i >= len(camera_indices):
+            if config['verbose']:
+                print(f"    Warning: Reached the end of camera indices while trying to find {num_new_clicks} cameras.")
             break
 
         idx = camera_indices[i]
@@ -111,57 +87,34 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
     if cameras is None or len(cameras) == 0 and config['verbose']:
         print("    No cameras selected. Skipping augmentation mask extraction.")
         return None
-    
-    random.shuffle(cameras)
 
     sampled_clicks = []
-    attempt = 1
 
-    if foreground:
-        num_new_clicks = config['num_new_clicks_fg']
-    else:
-        num_new_clicks = config['num_new_clicks_bg']
+    if foreground: num_new_clicks = config['num_new_clicks_fg']
+    else: num_new_clicks = config['num_new_clicks_bg']
 
-    while len(sampled_clicks) < num_new_clicks and attempt < num_new_clicks * 5:
-        if config['verbose']:
-            if foreground:
-                print(f"    Attempting click augumentation (foreground), attempt: {attempt}")
-            else:
-                print(f"    Attempting click augumentation (background), attempt: {attempt}")
-
-        attempt += 1
-        for cam_id in tqdm(sam_masks.keys(), desc="        Processing cameras", unit="cam", disable=not config['verbose']):
-            if len(sampled_clicks) >= num_new_clicks:
-                break
+    description = f"    Augmenting clicks {'(foreground)' if foreground else '(background)'}"
+    for _ in tqdm(range(len(cameras) * config['num_samples']), desc=description, disable=not config['verbose']):
+        if len(sampled_clicks) >= num_new_clicks: break
+        for cam_id in sam_masks.keys():
+            if len(sampled_clicks) >= num_new_clicks: break
             try:
                 cam_id = int(cam_id)
                 pose = scene_data.__get_camera_pose__(cam_id)
                 fx, fy, cx, cy = scene_data.__get_camera_intrinsics__(cam_id)
                 depth_raw = scene_data.__get_camera_depth__(cam_id)
 
-                if foreground:
-                    mask_og = sam_masks[str(cam_id)]['high_granularity'].to(config['device'])
-                else:
-                    mask_og = sam_masks[str(cam_id)]['low_granularity'].to(config['device'])
+                mask = sam_masks[str(cam_id)]['foreground'].to(config['device']) if foreground else sam_masks[str(cam_id)]['background'].to(config['device'])
 
-                for _ in range(config['max_attemps_pixel_sampling']):
-
-                    if foreground:
-                        y, x, mask = sample_foreground(mask_og)
-                    else:
-                        y, x, mask = sample_background(mask_og)
-
-                    d = depth_raw[y.item(), x.item()] / 1000.0
-
-                    if d > config['projection_near_m'] and d < config['projection_far_m']:
-                        break
-                    else:
-                        d = None
-
-                if d == None:
-                    print(f"        Failed to sample a valid pixel after {config['max_attemps_pixel_sampling']} attempts on camera {cam_id}. Skipping this camera.")
-                    continue
+                key = 'foreground_samples' if foreground else 'background_samples'
+                if len(sam_masks[str(cam_id)][key]) == 0: continue
+                x, y = sam_masks[str(cam_id)][key].pop()
+                d = depth_raw[y, x] / 1000.0
+                if d < config['projection_near_m'] or d > config['projection_far_m']: continue
                 
+                if foreground: sam_masks[str(cam_id)]['selected_foreground_samples'].append((x, y))
+                else: sam_masks[str(cam_id)]['selected_background_samples'].append((x, y))
+
                 x_cam = (x - cx) * d / fx
                 y_cam = (y - cy) * d / fy
                 z_cam = d
@@ -169,16 +122,19 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
                 point_world = torch.matmul(pose, point_cam)
                 sampled_clicks.append(point_world[:3].cpu().tolist())
 
-                if config['visualize']:
-                    point = (x, y)
-                    visualize_camera_with_mask_with_point(scene_data, cam_id, mask, point)
-
             except Exception as e:
-                print(f"    Error processing camera {cam_id}: {e}")
+                print(f"        Error processing camera {cam_id}: {e}")
                 continue
 
-    if len(sampled_clicks) < num_new_clicks and config['verbose']:
-        print(f"    Only {len(sampled_clicks)} clicks collected (requested {num_new_clicks}).")
+    if len(sampled_clicks) < num_new_clicks and config['verbose']: print(f"        Only {len(sampled_clicks)} clicks collected (requested {num_new_clicks}).")
+    elif config['verbose']: print(f"        Successfully collected {len(sampled_clicks)} clicks (requested {num_new_clicks}).")
+
+    if config['visualize']:
+        for cam_id in sam_masks.keys():
+            mask = sam_masks[cam_id]['foreground'].to(config['device']) if foreground else sam_masks[cam_id]['background'].to(config['device'])
+            sampled_points = sam_masks[cam_id]['selected_foreground_samples'] if foreground else sam_masks[cam_id]['selected_background_samples']
+            title = f"Camera {cam_id} - {'Foreground' if foreground else 'Background'} selected point"
+            visualize_camera_with_mask_with_points(scene_data, int(cam_id), mask, sampled_points, title)
 
     return sampled_clicks
 
@@ -199,15 +155,26 @@ def process_click(scene_data, click_coordinate, config):
     selected_cameras, pixels = find_visible_cameras(scene_data, click_coordinate, config)
     if config['verbose']:
         if len(selected_cameras) > 0:
-            print(f"    Found {len(selected_cameras)}/{max(config['num_new_clicks_fg'], config['num_new_clicks_bg'])} visible cameras:")
+            print(f"    Found {len(selected_cameras)}/1 visible cameras:")
             for cam_id, pixel in zip(selected_cameras, pixels):
                 pixel = (int(pixel[0].item()), int(pixel[1].item()))
                 print(f"        Camera ID: {cam_id}, Pixel: {pixel}")
+
     if config['verbose']: print(f"    Done finding visible cameras.")
 
-    sam_masks = extract_sam_masks_v1(scene_data, selected_cameras, pixels, config)
+    sam_masks = extract_sam_masks(scene_data, selected_cameras, pixels, config)
     if sam_masks is not None:
         if config['verbose']: print(f"    Extracted {len(sam_masks)} SAM masks.")
+
+    sam_masks = sample_masks(scene_data, sam_masks, config)
+    if config['verbose']:
+        print(f"    Sampling done for {len(sam_masks)} SAM masks.")
+        for camera_id in sam_masks.keys():
+            sam_mask = sam_masks[camera_id]
+            if 'foreground_samples' in sam_mask:
+                print(f"        Extracted {len(sam_mask['foreground_samples'])}/{config['num_samples']} foreground samples for camera {camera_id}.")
+            if 'background_samples' in sam_mask:
+                print(f"        Extracted {len(sam_mask['background_samples'])}/{config['num_samples']} background samples for camera {camera_id}.")
 
     new_clicks = augment_click(scene_data, selected_cameras, sam_masks, config, True)
     if new_clicks is not None and new_clicks != []:

@@ -56,3 +56,35 @@ def check_camera_visibility(scene_data, idx, click_coordinate, config):
 
     # coordinates are in depth map pixel space
     return True, (x_pixel, y_pixel)
+
+def z_filter(scene_data, cameras, point_3d):
+    poses = torch.from_numpy(scene_data.poses[cameras.cpu().numpy()]).to(point_3d.device)
+
+    R_all = poses[:, :3, :3]
+    t_all = poses[:, :3, 3] 
+
+    point_rel = point_3d.unsqueeze(0) - t_all 
+    R_transpose = R_all.transpose(1, 2)       
+    point_cam_all = torch.bmm(R_transpose, point_rel.unsqueeze(2)).squeeze(2)
+
+    visible_mask = point_cam_all[:, 2] > 0
+    visible_cameras = cameras[visible_mask]
+
+    return visible_cameras
+
+def angle_sort(scene_data, cameras, point_3d):
+    poses = torch.from_numpy(scene_data.poses[cameras.cpu().numpy()]).to(point_3d.device)
+
+    R_all = poses[:, :3, :3] 
+    t_all = poses[:, :3, 3]   
+
+    view_dirs = -R_all[:, :, 2] 
+    cam_to_point = point_3d.unsqueeze(0) - t_all 
+    cam_to_point = cam_to_point / cam_to_point.norm(dim=1, keepdim=True) 
+
+    cosines_vals = (view_dirs * cam_to_point).sum(dim=1) 
+
+    sorted_indices = torch.argsort(cosines_vals)
+    sorted_cameras = cameras[sorted_indices]
+
+    return sorted_cameras

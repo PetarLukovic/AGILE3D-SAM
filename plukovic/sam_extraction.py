@@ -1,6 +1,4 @@
-import cv2
 import torch
-import random
 import numpy as np
 
 from tqdm import tqdm
@@ -12,60 +10,54 @@ from segment_anything import (
 )
 
 from plukovic.visualisation import (
-    visualize_camera_with_mask_with_point,
+    visualize_camera_with_mask_with_points,
 )
 
-def sample_foreground(mask):
-    foreground_pixels = torch.nonzero(mask >= 0.5)
-    selected_index = random.randint(0, foreground_pixels.size(0) - 1)
-    coords = foreground_pixels[selected_index]
-    y, x = coords[0], coords[1]
-    return y, x, mask
+def extract_foreground_mask(mask, opening_iters=7, erosion_iters=4):
 
-def sample_background(mask, border_width=50, erosion_iters=10):
-    bin_mask = (mask > 0.5).float()
+    if mask.dim() == 4 and mask.size(0) == 1 and mask.size(1) == 1:
+        mask = mask.squeeze(0).squeeze(0)
 
-    pad = border_width
-    bin_mask_padded = F.pad(bin_mask.unsqueeze(0).unsqueeze(0), (pad, pad, pad, pad), mode='constant', value=0)
-
+    bin_mask = (mask > 0.5).float().unsqueeze(0).unsqueeze(0)
     kernel = torch.ones((1, 1, 3, 3), device=mask.device)
 
-    # Dilate mask by border_width pixels
-    dilated = bin_mask_padded
-    for _ in range(border_width):
+    eroded = bin_mask.clone()
+    for _ in range(opening_iters):
+        eroded = F.conv2d(eroded, kernel, padding=1)
+        eroded = (eroded == kernel.sum()).float()
+
+    dilated = eroded.clone()
+    for _ in range(erosion_iters):
+        dilated = F.conv2d(dilated, kernel, padding=1)
+        dilated = (dilated > 0).float()
+
+    return dilated.squeeze(0).squeeze(0)
+
+def extract_background_mask(mask, opening_iters=50, erosion_iters=10):
+    if mask.dim() == 4 and mask.size(0) == 1 and mask.size(1) == 1:
+        mask = mask.squeeze(0).squeeze(0)
+
+    bin_mask = (mask > 0.5).float()
+    kernel = torch.ones((1, 1, 3, 3), device=mask.device)
+
+    pad = opening_iters
+    padded_mask = F.pad(bin_mask.unsqueeze(0).unsqueeze(0), (pad, pad, pad, pad), mode='constant', value=0)
+
+    dilated = padded_mask
+    for _ in range(opening_iters):
         dilated = F.conv2d(dilated, kernel, padding=1)
         dilated = (dilated > 0).float()
     dilated = dilated.squeeze(0).squeeze(0)[pad:-pad, pad:-pad]
 
-    # Border outside = dilated mask minus original mask
     outside_border_mask = (dilated - bin_mask) > 0
-
-    # --- Erode the outside_border_mask ---
     eroded = outside_border_mask.float().unsqueeze(0).unsqueeze(0)
     for _ in range(erosion_iters):
         eroded = F.conv2d(eroded, kernel, padding=1)
         eroded = (eroded == kernel.sum()).float()
-    eroded = eroded.squeeze(0).squeeze(0)
 
-    border_pixels = torch.nonzero(eroded)
-    if border_pixels.size(0) == 0:
-        raise ValueError("No border pixels found after erosion.")
+    return eroded.squeeze(0).squeeze(0)
 
-    selected_index = random.randint(0, border_pixels.size(0) - 1)
-    y, x = border_pixels[selected_index]
-
-    return y, x, eroded
-
-"""
-def sample_background(mask):
-    background_pixels = torch.nonzero(mask <= 0.5)
-    selected_index = random.randint(0, background_pixels.size(0) - 1)
-    coords = background_pixels[selected_index].to(mask.device)
-    y, x = coords[0], coords[1]
-    return y, x
-"""
-
-def extract_sam_masks_v1(scene_data, cameras, pixels, config):
+def extract_sam_masks(scene_data, cameras, pixels, config):
     if cameras is None or len(cameras) == 0 and config['verbose']:
         print("    No cameras selected. Skipping SAM mask extraction.")
         return {}
@@ -96,17 +88,17 @@ def extract_sam_masks_v1(scene_data, cameras, pixels, config):
             multimask_output=True,
         )
 
-        hg_mask = torch.tensor(masks[0], dtype=torch.uint8)
-        lg_mask = torch.tensor(masks[2], dtype=torch.uint8)
+        foreground = extract_foreground_mask(torch.tensor(masks[0], dtype=torch.uint8))
+        background = extract_background_mask(torch.tensor(masks[2], dtype=torch.uint8))
 
         masks_out[str(cam_id.item())] = {
-            "high_granularity": hg_mask,
-            "low_granularity": lg_mask,
+            "foreground": foreground,
+            "background": background,
         }
 
         if config['visualize']:
-            visualize_camera_with_mask_with_point(scene_data, cam_id, hg_mask, (x.cpu().item(), y.cpu().item()))
-            visualize_camera_with_mask_with_point(scene_data, cam_id, lg_mask, (x.cpu().item(), y.cpu().item()))
+            visualize_camera_with_mask_with_points(scene_data, cam_id, foreground, [(x.cpu().item(), y.cpu().item())], f"Camera {cam_id} - Foreground Mask")
+            visualize_camera_with_mask_with_points(scene_data, cam_id, background, [(x.cpu().item(), y.cpu().item())], f"Camera {cam_id} - Background Mask")
 
     if not masks_out:
         return {}

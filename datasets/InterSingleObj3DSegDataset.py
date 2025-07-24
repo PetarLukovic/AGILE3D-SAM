@@ -25,10 +25,10 @@ class InterSingleObj3DSegDataset(Dataset):
         self.scan_folder = scan_folder
         
         scene_name_start = 'scene0011_00'
-        object_id_start = '3'
+        object_id_start = '2'
         
         scene_name_end = 'scene0011_00'
-        object_id_end = '4'
+        object_id_end = '2'
 
         self.dataset_list = np.load(object_list, allow_pickle=True)
         original_size = len(self.dataset_list)
@@ -47,9 +47,9 @@ class InterSingleObj3DSegDataset(Dataset):
                 end_index = i + 1
                 break
 
-        start_index = 0
-        end_index = 2500
-        
+        #start_index = 0
+        #end_index = 2500
+
         if start_index is not None:
             self.dataset_list = self.dataset_list[start_index:end_index]
         else:

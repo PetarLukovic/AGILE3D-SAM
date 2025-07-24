@@ -30,7 +30,6 @@ def create_sphere_at_point(center, radius=0.1, color=[1, 0, 0]):
 
 def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates_fg, click_coordinates_bg, subsample_frustrums=False):
     ply_file = scene_data.ply_file_agile3d
-    #print(f"    Visualizing scene: {scene_data.scene_name} with PLY file: {ply_file}")
 
     if not os.path.exists(ply_file):
         print(f"    PLY file not found: {ply_file}")
@@ -93,10 +92,10 @@ def visualize_camera_with_point(scene_data, cam_idx, point):
     cv2.waitKey(0)
     cv2.destroyWindow(f'Camera {cam_idx} - RGB with Selected Pixel')
 
-def visualize_camera_with_mask_with_point(scene_data, cam_idx, mask, point):
+def visualize_camera_with_mask_with_points(scene_data, cam_idx, mask, points, title = "Camera with SAM Mask"):
     rgb = scene_data.__get_camera_rgb__(cam_idx).permute(2, 0, 1)
     rgb_vis = rgb.permute(1, 2, 0).cpu().numpy()
-    target_size = (812, 512)
+    target_size = (812, 512)  # width, height
 
     h, w = scene_data.__get_depth_resolution__(cam_idx)
 
@@ -109,51 +108,52 @@ def visualize_camera_with_mask_with_point(scene_data, cam_idx, mask, point):
         mask_vis = mask.astype(np.uint8)
 
     mask_vis = np.stack([mask_vis] * 3, axis=-1)
-    rgb_vis = cv2.resize(rgb_vis, target_size)
     mask_vis = cv2.resize(mask_vis, target_size)
+    rgb_vis = cv2.resize(rgb_vis, target_size)
 
-    x, y = point
-    x_scaled = int(x * scale_x)
-    y_scaled = int(y * scale_y)
+    for (x, y) in points:
+        x_scaled = int(x * scale_x)
+        y_scaled = int(y * scale_y)
+        cv2.circle(rgb_vis, (x_scaled, y_scaled), radius=3, color=(0, 255, 0), thickness=-1)
+        
+    rgb_with_mask = (rgb_vis * mask_vis)
+    for (x, y) in points:
+        x_scaled = int(x * scale_x)
+        y_scaled = int(y * scale_y)
+        cv2.circle(rgb_with_mask, (x_scaled, y_scaled), radius=3, color=(0, 255, 0), thickness=-1)
 
-    cv2.circle(rgb_vis, (x_scaled, y_scaled), radius=3, color=(0, 255, 0), thickness=-1)
-    cv2.circle(rgb_vis, (x_scaled, y_scaled), radius=3, color=(0, 255, 0), thickness=-1)
-    combined = np.hstack((rgb_vis, rgb_vis * mask_vis))
-    cv2.imshow(f'Camera {cam_idx} - RGB and SAM Mask', combined)
+    combined = np.hstack((rgb_vis, rgb_with_mask))
+    cv2.imshow(title, combined)
     cv2.waitKey(0)
-    cv2.destroyWindow(f'Camera {cam_idx} - RGB and SAM Mask')
+    cv2.destroyWindow(title)
 
-def visualize_iou_single(coords, preds, labels):
-    """Visualize the IoU for a single object
-    """
+def visualize_iou_single(coords, preds, labels, obj_id=None):
     coords = coords.cpu().numpy()
     preds = preds.cpu().numpy()
     labels = labels.cpu().numpy()
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(f'Prediction & Errors (Object {obj_id})')
     ax.scatter(*coords.T, c='b', label='Scene', s=1, alpha=0.1)
+    ax.scatter(*coords[preds].T, c='g', label='Prediction', s=1.2, alpha=1.0)
     ax.scatter(*coords[labels ^ preds].T, c='r', label='Mistakes', s=1.2, alpha=1.0)
     ax.legend()
     plt.show()
 
-def visualize_gt_single(coords, labels):
-    """Visualize the IoU for a single object
-    """
+def visualize_gt_single(coords, labels, obj_id=None):
     coords = coords.cpu().numpy()
     labels = labels.cpu().numpy()
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(f'Ground Truth (Object {obj_id})')
     ax.scatter(*coords.T, c='b', label='Scene', s=1, alpha=0.1)
     ax.scatter(*coords[labels].T, c='r', label='GT', s=1.2, alpha=1.0)
     ax.legend()
     plt.show()
 
-
 def visualize_iou_scene(coords, preds, labels):
-    """Visualize the IoU for all objects
-    """
     obj_ids = torch.unique(labels)
     obj_ids = obj_ids[obj_ids!=0]
 
@@ -161,15 +161,45 @@ def visualize_iou_scene(coords, preds, labels):
         preds_obj = preds == obj_id
         labels_obj = labels == obj_id
 
-        visualize_iou_single(coords, preds_obj, labels_obj)
+        visualize_iou_single(coords, preds_obj, labels_obj, obj_id)
 
 def visualize_gt_scene(coords, labels):
-    """Visualize the IoU for all objects
-    """
     obj_ids = torch.unique(labels)
     obj_ids = obj_ids[obj_ids!=0]
 
     for obj_id in obj_ids:
         labels_obj = labels == obj_id
+        visualize_gt_single(coords, labels_obj, obj_id)
 
-        visualize_gt_single(coords, labels_obj)
+
+def visualize_comparison_single(coords, preds, labels, obj_id=None):
+    coords = coords.cpu().numpy()
+    preds = preds.cpu().numpy()
+    labels = labels.cpu().numpy()
+
+    fig = plt.figure(figsize=(12, 6))
+
+    ax1 = fig.add_subplot(1, 2, 1, projection='3d')
+    ax1.set_title(f'Ground Truth (Object {obj_id})')
+    ax1.scatter(*coords.T, c='b', label='Scene', s=1, alpha=0.1)
+    ax1.scatter(*coords[labels].T, c='r', label='GT', s=1.2, alpha=1.0)
+    ax1.legend()
+
+    ax2 = fig.add_subplot(1, 2, 2, projection='3d')
+    ax2.set_title(f'Prediction & Errors (Object {obj_id})')
+    ax2.scatter(*coords.T, c='b', label='Scene', s=1, alpha=0.1)
+    ax2.scatter(*coords[preds].T, c='g', label='Prediction', s=1.2, alpha=1.0)
+    ax2.scatter(*coords[labels ^ preds].T, c='r', label='Mistakes', s=1.2, alpha=1.0)
+    ax2.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def visualize_comparison_scene(coords, preds, labels):
+    obj_ids = torch.unique(labels)
+    obj_ids = obj_ids[obj_ids != 0]
+
+    for obj_id in obj_ids:
+        preds_obj = preds == obj_id
+        labels_obj = labels == obj_id
+        visualize_comparison_single(coords, preds_obj, labels_obj, obj_id.item())
