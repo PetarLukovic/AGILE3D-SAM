@@ -52,6 +52,8 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     #    num_new_clicks = config['num_new_clicks_bg']
 
     num_new_clicks = config['num_cameras']
+    camera_indices = camera_indices[:config['max_attempts_camera_selection']]
+    random.shuffle(camera_indices)
 
     if config['verbose']: print(f"    Extracting {num_new_clicks} cameras.")
 
@@ -155,7 +157,7 @@ def process_click(scene_data, click_coordinate, config):
     selected_cameras, pixels = find_visible_cameras(scene_data, click_coordinate, config)
     if config['verbose']:
         if len(selected_cameras) > 0:
-            print(f"    Found {len(selected_cameras)}/1 visible cameras:")
+            print(f"    Found {len(selected_cameras)}/{config['num_cameras']} visible cameras:")
             for cam_id, pixel in zip(selected_cameras, pixels):
                 pixel = (int(pixel[0].item()), int(pixel[1].item()))
                 print(f"        Camera ID: {cam_id}, Pixel: {pixel}")

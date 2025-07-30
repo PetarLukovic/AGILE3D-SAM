@@ -18,20 +18,21 @@ from utils.ply import read_ply
 
 class InterSingleObj3DSegDataset(Dataset):
 
-    def __init__(self, scan_folder, object_list, quantization_size, crop=False, transforms=None):
+    def __init__(self, scan_folder, object_list, quantization_size, crop=False, transforms=None, start_index=0, end_index=10357):
         super(InterSingleObj3DSegDataset, self).__init__()
 
         self.quantization_size = quantization_size
         self.scan_folder = scan_folder
-        
+        self.dataset_list = np.load(object_list, allow_pickle=True)
+        original_size = len(self.dataset_list)
+
+        '''
         scene_name_start = 'scene0011_00'
         object_id_start = '1'
         
         scene_name_end = 'scene0011_00'
         object_id_end = '10'
 
-        self.dataset_list = np.load(object_list, allow_pickle=True)
-        original_size = len(self.dataset_list)
 
         start_index = None
         for i, (scene, obj_id) in enumerate(self.dataset_list):
@@ -46,18 +47,13 @@ class InterSingleObj3DSegDataset(Dataset):
             if scene == scene_name_end and obj_id == object_id_end:
                 end_index = i + 1
                 break
-
+                
         #start_index = 0
         #end_index = 2500
+        '''
 
-        if start_index is not None:
-            self.dataset_list = self.dataset_list[start_index:end_index]
-        else:
-            print(f"Warning: Pair ({scene_name_start}, {object_id_start}) not found. Dataset will be empty.")
-            self.dataset_list = []
-
+        self.dataset_list = self.dataset_list[start_index:end_index]
         self.dataset_size = len(self.dataset_list)
-
         self.crop = crop
         self.transforms = transforms
 
@@ -162,6 +158,12 @@ def build(split, args):
 
     scan_folder, object_list = PATHS[split]
     
-    dataset = InterSingleObj3DSegDataset(scan_folder, object_list, args.voxel_size, crop=args.crop, transforms=make_scan_transforms(split))
+    dataset = InterSingleObj3DSegDataset(scan_folder, 
+                                         object_list, 
+                                         args.voxel_size, 
+                                         crop=args.crop, 
+                                         transforms=make_scan_transforms(split), 
+                                         start_index=args.start_index, 
+                                         end_index=args.end_index)
     
     return dataset, collation_fn

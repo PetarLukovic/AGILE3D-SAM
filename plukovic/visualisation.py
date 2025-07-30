@@ -172,17 +172,26 @@ def visualize_gt_scene(coords, labels):
         visualize_gt_single(coords, labels_obj, obj_id)
 
 
-def visualize_comparison_single(coords, preds, labels, obj_id=None):
+def visualize_comparison_single(coords, preds, labels, clicks, obj_id=None):
     coords = coords.cpu().numpy()
     preds = preds.cpu().numpy()
     labels = labels.cpu().numpy()
 
     fig = plt.figure(figsize=(12, 6))
 
+    obj_clicks = clicks.get(str(obj_id), [])
+    background_clicks = clicks.get('0', [])
+
     ax1 = fig.add_subplot(1, 2, 1, projection='3d')
     ax1.set_title(f'Ground Truth (Object {obj_id})')
     ax1.scatter(*coords.T, c='b', label='Scene', s=1, alpha=0.1)
     ax1.scatter(*coords[labels].T, c='r', label='GT', s=1.2, alpha=1.0)
+
+    if obj_clicks:
+        ax1.scatter(*coords[obj_clicks].T, c='gold', label='Object Clicks', s=40, marker='x')
+    if background_clicks:
+        ax1.scatter(*coords[background_clicks].T, c='black', label='Background Clicks', s=40, marker='x')
+
     ax1.legend()
 
     ax2 = fig.add_subplot(1, 2, 2, projection='3d')
@@ -190,16 +199,22 @@ def visualize_comparison_single(coords, preds, labels, obj_id=None):
     ax2.scatter(*coords.T, c='b', label='Scene', s=1, alpha=0.1)
     ax2.scatter(*coords[preds].T, c='g', label='Prediction', s=1.2, alpha=1.0)
     ax2.scatter(*coords[labels ^ preds].T, c='r', label='Mistakes', s=1.2, alpha=1.0)
+
+    if obj_clicks:
+        ax2.scatter(*coords[obj_clicks].T, c='gold', label='Object Clicks', s=40, marker='x')
+    if background_clicks:
+        ax2.scatter(*coords[background_clicks].T, c='black', label='Background Clicks', s=40, marker='x')
+
     ax2.legend()
 
     plt.tight_layout()
     plt.show()
 
-def visualize_comparison_scene(coords, preds, labels):
+def visualize_comparison_scene(coords, preds, labels, clicks):
     obj_ids = torch.unique(labels)
     obj_ids = obj_ids[obj_ids != 0]
 
     for obj_id in obj_ids:
         preds_obj = preds == obj_id
         labels_obj = labels == obj_id
-        visualize_comparison_single(coords, preds_obj, labels_obj, obj_id.item())
+        visualize_comparison_single(coords, preds_obj, labels_obj, clicks, obj_id.item())

@@ -33,7 +33,7 @@ def extract_foreground_mask(mask, opening_iters=7, erosion_iters=4):
 
     return dilated.squeeze(0).squeeze(0)
 
-def extract_background_mask(mask, opening_iters=50, erosion_iters=10):
+def extract_background_mask(mask, opening_iters=70, erosion_iters=10):
     if mask.dim() == 4 and mask.size(0) == 1 and mask.size(1) == 1:
         mask = mask.squeeze(0).squeeze(0)
 
@@ -89,7 +89,7 @@ def extract_sam_masks(scene_data, cameras, pixels, config):
         )
 
         foreground = extract_foreground_mask(torch.tensor(masks[0], dtype=torch.uint8))
-        background = extract_background_mask(torch.tensor(masks[2], dtype=torch.uint8))
+        background = extract_background_mask(torch.tensor(masks[1], dtype=torch.uint8))
 
         masks_out[str(cam_id.item())] = {
             "foreground": foreground,
@@ -97,8 +97,7 @@ def extract_sam_masks(scene_data, cameras, pixels, config):
         }
 
         if config['visualize']:
-            visualize_camera_with_mask_with_points(scene_data, cam_id, foreground, [(x.cpu().item(), y.cpu().item())], f"Camera {cam_id} - Foreground Mask")
-            visualize_camera_with_mask_with_points(scene_data, cam_id, background, [(x.cpu().item(), y.cpu().item())], f"Camera {cam_id} - Background Mask")
+            visualize_camera_with_mask_with_points(scene_data, cam_id, foreground + background, [(x.cpu().item(), y.cpu().item())], f"Camera {cam_id} - Foreground/Background Mask")
 
     if not masks_out:
         return {}

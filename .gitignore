@@ -22,3 +22,6 @@ weights/
 
 # Data folder
 data/
+
+# MinkowskiEngine
+MinkowskiEngine/

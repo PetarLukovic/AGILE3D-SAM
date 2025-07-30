@@ -77,6 +77,9 @@ def get_args_parser():
 
     parser.add_argument('--max_num_clicks', default=20, help='maximum number of clicks per object on average', type=int)
 
+    parser.add_argument('--start_index', default=0, help='start index of the dataset', type=int)
+    parser.add_argument('--end_index', default=10357, help='end index of the dataset', type=int)
+
     return parser
 
 
@@ -146,7 +149,10 @@ def Evaluate(model, data_loader, args, device):
             sim_click_times[idx].extend([new_click_times])
             sim_click_times[idx].extend(sam_click_times_list)
 
-        for current_num_clicks in range(len(sim_clicks[0])+1):
+        current_num_clicks = 0
+        current_sample = 0
+
+        while current_num_clicks <= args.max_num_clicks and current_sample <= len(sim_clicks[0]):
 
             if current_num_clicks == 0:
                 pred = [torch.zeros(l.shape).to(device) for l in labels]
@@ -173,8 +179,7 @@ def Evaluate(model, data_loader, args, device):
                 sample_raw_coords = raw_coords[sample_mask]
                 sample_pred_full = sample_pred[inverse_map[idx]]
 
-                if current_num_clicks >= 5:
-                    x=1
+                #if current_num_clicks >= args.max_num_clicks // 2:
                     #visualize_comparison_scene(raw_coords, sample_pred, sample_labels)
                     #visualize_iou_scene(raw_coords, sample_pred, sample_labels)
                     #visualize_gt_scene(raw_coords, sample_labels)
@@ -182,18 +187,35 @@ def Evaluate(model, data_loader, args, device):
                 sample_labels_full = labels_full[idx]
                 sample_iou, _ = mean_iou_scene(sample_pred_full, sample_labels_full)
 
-                line = str(instance_counter+idx) + ' ' + scene_name[idx].replace('scene','') + ' '  + object_id[idx] + ' ' + str(current_num_clicks) +  ' ' + str(
-                sample_iou.cpu().numpy()) + '\n'
+                line = str(instance_counter+idx) + ' ' + scene_name[idx].replace('scene','') + ' '  + object_id[idx] + ' ' + str(current_num_clicks) +  ' ' + str(sample_iou.cpu().numpy()) + '\n'
                 f.write(line)
                 print(scene_name[idx], ' | Object: ', object_id[idx], ' | num clicks: ', current_num_clicks, ' | IOU: ', sample_iou.item())
 
-                if current_num_clicks < len(sim_clicks[idx]):
-                    new_clicks = sim_clicks[idx][current_num_clicks]
-                    new_click_time = sim_click_times[idx][current_num_clicks]
-                    print(f"Adding new clicks: {new_clicks}.")
-                    click_idx[idx], click_time_idx[idx] = extend_clicks(click_idx[idx], click_time_idx[idx], new_clicks, new_click_time)
+                take_sample = False
+                while current_sample < len(sim_clicks[idx]):
+                    new_clicks = sim_clicks[idx][current_sample]
+                    new_click_time = sim_click_times[idx][current_sample]
+                    current_sample += 1
+
+                    for key in new_clicks.keys():
+                        click = new_clicks[key][0]
+                        if int(sample_pred[click]) != int(key): 
+                            #print(f"Current sample {key} and the predicted label {int(sample_pred[click])} are different, taking sample.")
+                            take_sample = True
+                            break
+                        else: 
+                            #print(f"Current sample {key} and the predicted label {int(sample_pred[click])} are the same, sample rejected")
+                            take_sample = False
                     
-                else:
+                    if take_sample:
+                        print(f"Adding new clicks: {new_clicks}.")
+                        current_num_clicks += 1
+                        click_idx[idx], click_time_idx[idx] = extend_clicks(click_idx[idx], click_time_idx[idx], new_clicks, new_click_time)
+                        break 
+
+                if not take_sample and current_sample >= len(sim_clicks[idx]):
+                    #visualize_comparison_scene(raw_coords, sample_pred, sample_labels, click_idx[0])
+                    current_sample += 1
                     print(f"No more clicks to add.")
 
                 print(f"-----------------------------------------------------------------------------------------")

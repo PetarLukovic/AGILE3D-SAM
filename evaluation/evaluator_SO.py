@@ -82,7 +82,7 @@ class EvaluatorSO():
                             num_objects+=1
                             ordered_clicks.append(float(num_clicks))
 
-                    elif int(num_clicks)>=10 and (float(iou)>=0):
+                    elif int(num_clicks)>=20 and (float(iou)>=0):
                         if (scene_name+'_'+object_id) not in results_dict_KatIOU:
                             results_dict_KatIOU[scene_name+'_'+object_id] = float(num_clicks)
                             num_objects += 1
@@ -149,7 +149,9 @@ class EvaluatorSO():
             'IoU@2': IOU_PER_CLICK_dict['2']/NOO_PER_CLICK_dict['2'],
             'IoU@3': IOU_PER_CLICK_dict['3']/NOO_PER_CLICK_dict['3'],
             'IoU@5': IOU_PER_CLICK_dict['5']/NOO_PER_CLICK_dict['5'],
-            'IoU@10': IOU_PER_CLICK_dict['10']/NOO_PER_CLICK_dict['10']
+            'IoU@10': IOU_PER_CLICK_dict['10']/NOO_PER_CLICK_dict['10'],
+            'IoU@15': IOU_PER_CLICK_dict['15']/NOO_PER_CLICK_dict['15'],
+            'IoU@20': IOU_PER_CLICK_dict['20']/NOO_PER_CLICK_dict['20']
         }
 
         for key, value in results_dict.items():
