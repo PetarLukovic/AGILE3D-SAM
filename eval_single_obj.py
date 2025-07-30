@@ -179,11 +179,6 @@ def Evaluate(model, data_loader, args, device):
                 sample_raw_coords = raw_coords[sample_mask]
                 sample_pred_full = sample_pred[inverse_map[idx]]
 
-                #if current_num_clicks >= args.max_num_clicks // 2:
-                    #visualize_comparison_scene(raw_coords, sample_pred, sample_labels)
-                    #visualize_iou_scene(raw_coords, sample_pred, sample_labels)
-                    #visualize_gt_scene(raw_coords, sample_labels)
-
                 sample_labels_full = labels_full[idx]
                 sample_iou, _ = mean_iou_scene(sample_pred_full, sample_labels_full)
 
@@ -200,11 +195,11 @@ def Evaluate(model, data_loader, args, device):
                     for key in new_clicks.keys():
                         click = new_clicks[key][0]
                         if int(sample_pred[click]) != int(key): 
-                            #print(f"Current sample {key} and the predicted label {int(sample_pred[click])} are different, taking sample.")
+                            print(f"Current sample {key} and the predicted label {int(sample_pred[click])} are different, taking sample.")
                             take_sample = True
                             break
                         else: 
-                            #print(f"Current sample {key} and the predicted label {int(sample_pred[click])} are the same, sample rejected")
+                            print(f"Current sample {key} and the predicted label {int(sample_pred[click])} are the same, sample rejected")
                             take_sample = False
                     
                     if take_sample:

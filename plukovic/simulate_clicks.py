@@ -14,13 +14,11 @@ config = {
     'projection_near_m': 0.1,
     'projection_far_m': 5.0,
     'depth_threshold_mm': 30,
-    'num_cameras': 2,
+    'num_cameras': 1,
     'sampling': 'random',
     'num_samples': 120,
     'device': "cpu"
 }
-
-# GT + prediction in green + mistakes in red
 
 def get_simualted_clicks_scene_sam(raw_coords, click_idx, sensors):
 

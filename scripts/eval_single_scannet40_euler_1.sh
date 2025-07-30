@@ -10,5 +10,6 @@ python eval_single_obj.py --dataset=scannet40 \
                --output_dir=${scannet_folder}/results \
                --checkpoint=weights/checkpoint1099.pth \
                --val_batch_size=1 \
-               --max_num_clicks=1 \
+               --start_index=1 \
+               --end_index=3000 \
 
