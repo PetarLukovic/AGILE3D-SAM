@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-scannet_folder="/cluster/scratch/plukovic/KITTI-360"
+kitti360_folder="/cluster/scratch/plukovic/KITTI-360"
 
 python eval_single_obj.py --dataset=kitti360 \
                --dataset_mode=single_obj \
