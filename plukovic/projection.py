@@ -19,7 +19,7 @@ def raytrace_3d_to_pixel(scene_data, idx, point_3d, config=None):
     else: point_h = point_3d
 
     cam_pose_inv = torch.inverse(pose)
-    point_h = torch.from_numpy(point_h).to(cam_pose_inv.device)
+    point_h = point_h.to(cam_pose_inv.device)
     point_cam = cam_pose_inv @ point_h
     z = point_cam[2]
 
