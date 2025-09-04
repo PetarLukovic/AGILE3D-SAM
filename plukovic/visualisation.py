@@ -5,7 +5,6 @@ import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
 
-
 def create_camera_frustum(scale=0.1, color=[0, 1, 0]):
     points = np.array([
         [0, 0, 0], [1, 1, 2], [1, -1, 2], [-1, -1, 2], [-1, 1, 2]
@@ -29,13 +28,8 @@ def create_sphere_at_point(center, radius=0.1, color=[1, 0, 0]):
     return sphere
 
 def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates_fg, click_coordinates_bg, subsample_frustrums=False):
-    ply_file = scene_data.ply_file_agile3d
 
-    if not os.path.exists(ply_file):
-        print(f"    PLY file not found: {ply_file}")
-        return
-    
-    pcd = o3d.io.read_point_cloud(ply_file)
+    pcd = scene_data.point_cloud
 
     camera_positions = []
     for camera in cameras:
@@ -56,7 +50,7 @@ def visualize_scene_with_trajectory(scene_data, cameras, click_coordinates_fg, c
         frustums.append(frustum)
         
     if subsample_frustrums:
-        frustums = frustums[::10]
+        frustums = frustums[::2]
 
     geometries = [pcd]
     for id, click in enumerate(click_coordinates_fg):
@@ -97,7 +91,7 @@ def visualize_camera_with_mask_with_points(scene_data, cam_idx, mask, points, ti
     rgb_vis = rgb.permute(1, 2, 0).cpu().numpy()
     target_size = (812, 512)  # width, height
 
-    h, w = scene_data.__get_depth_resolution__(cam_idx)
+    h, w = scene_data.__get_camera_resolution__(cam_idx)
 
     scale_x = target_size[0] / w
     scale_y = target_size[1] / h

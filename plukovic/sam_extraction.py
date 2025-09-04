@@ -13,7 +13,7 @@ from plukovic.visualisation import (
     visualize_camera_with_mask_with_points,
 )
 
-def extract_foreground_mask(mask, opening_iters=7, erosion_iters=4):
+def extract_foreground_mask(mask, opening_iters=4, erosion_iters=3):
 
     if mask.dim() == 4 and mask.size(0) == 1 and mask.size(1) == 1:
         mask = mask.squeeze(0).squeeze(0)
@@ -88,8 +88,11 @@ def extract_sam_masks(scene_data, cameras, pixels, config):
             multimask_output=True,
         )
 
-        foreground = extract_foreground_mask(torch.tensor(masks[0], dtype=torch.uint8))
-        background = extract_background_mask(torch.tensor(masks[1], dtype=torch.uint8))
+        stacked_masks = np.stack([masks[0], masks[1], masks[2]], axis=0)
+        voted_mask = (np.sum(stacked_masks, axis=0) >= 2).astype(np.uint8)
+
+        foreground = extract_foreground_mask(torch.tensor(voted_mask, dtype=torch.uint8))
+        background = extract_background_mask(torch.tensor(voted_mask, dtype=torch.uint8))
 
         masks_out[str(cam_id.item())] = {
             "foreground": foreground,

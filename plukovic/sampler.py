@@ -79,4 +79,4 @@ def sample_masks(scene_data, sam_masks, config):
     return sam_masks
 
 def sample_cameras(scene_data, cameras):
-    return cameras[::2]
+    return cameras[::1]

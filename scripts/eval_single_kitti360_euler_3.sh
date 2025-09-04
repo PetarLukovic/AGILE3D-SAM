@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-kitti360_folder="/home/petar/interactive_segmentation/AGILE3D-SAM/data/KITTI-360"
+scannet_folder="/cluster/scratch/plukovic/KITTI-360"
 
-XDG_SESSION_TYPE=x11 python eval_single_obj.py --dataset=kitti360 \
+python eval_single_obj.py --dataset=kitti360 \
                --dataset_mode=single_obj \
                --scan_folder=${kitti360_folder}/single/crops \
                --crop \
@@ -11,5 +11,5 @@ XDG_SESSION_TYPE=x11 python eval_single_obj.py --dataset=kitti360 \
                --output_dir=${kitti360_folder}/results \
                --checkpoint=weights/checkpoint1099.pth \
                --val_batch_size=1 \
-               --start_index=1 \
-               --end_index=50 \
+               --start_index=1600 \
+               --end_index=2400 \

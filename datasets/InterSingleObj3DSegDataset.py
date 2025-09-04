@@ -18,40 +18,13 @@ from utils.ply import read_ply
 
 class InterSingleObj3DSegDataset(Dataset):
 
-    def __init__(self, scan_folder, object_list, quantization_size, crop=False, transforms=None, start_index=0, end_index=10357):
+    def __init__(self, scan_folder, object_list, quantization_size, crop=False, transforms=None, start_index=0, end_index=1):
         super(InterSingleObj3DSegDataset, self).__init__()
 
         self.quantization_size = quantization_size
         self.scan_folder = scan_folder
         self.dataset_list = np.load(object_list, allow_pickle=True)
         original_size = len(self.dataset_list)
-
-        '''
-        scene_name_start = 'scene0011_00'
-        object_id_start = '1'
-        
-        scene_name_end = 'scene0011_00'
-        object_id_end = '10'
-
-
-        start_index = None
-        for i, (scene, obj_id) in enumerate(self.dataset_list):
-            if scene == scene_name_start and obj_id == object_id_start:
-                start_index = i
-                break
-
-        end_index = original_size
-        for i, (scene, obj_id) in enumerate(self.dataset_list):
-            if scene_name_end is None:
-                break
-            if scene == scene_name_end and obj_id == object_id_end:
-                end_index = i + 1
-                break
-                
-        #start_index = 0
-        #end_index = 2500
-        '''
-
         self.dataset_list = self.dataset_list[start_index:end_index]
         self.dataset_size = len(self.dataset_list)
         self.crop = crop
@@ -59,7 +32,6 @@ class InterSingleObj3DSegDataset(Dataset):
 
         print(f"Working on {self.dataset_size}/{original_size}. Indexes {start_index} to {end_index-1}.")
 
-    
     def __len__(self):
         return len(self.dataset_list)
 
@@ -71,7 +43,6 @@ class InterSingleObj3DSegDataset(Dataset):
         if self.crop:
             point_cloud = read_ply(os.path.join(self.scan_folder, scene_name, scene_name + '_crop_' + object_id + '.ply'))
             labels_full = point_cloud['label'].astype(np.int32)
-
         else:
             point_cloud = read_ply(os.path.join(self.scan_folder, scene_name + '.ply'))
             labels_full = (point_cloud['label'] == int(object_id)).astype(np.int32)
@@ -97,6 +68,9 @@ class InterSingleObj3DSegDataset(Dataset):
         labels_qv = labels_full[unique_map]
 
         click_idx_qv = {}
+
+        if self.crop:   
+            scene_name = os.path.join(scene_name, scene_name + '_crop_' + object_id)
 
         return coords_qv, raw_coords_qv, feats_qv, labels_qv, labels_full, inverse_map, click_idx_qv, scene_name, object_id
 

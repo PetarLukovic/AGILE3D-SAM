@@ -17,7 +17,8 @@ class EvaluatorSO():
         object_list_file,
         object_classes_list_file,
         result_file,
-        MAX_IOU):
+        MAX_IOU,
+        max_clicks):
         
         self.dataset = dataset
         self.MAX_IOU = MAX_IOU
@@ -25,8 +26,9 @@ class EvaluatorSO():
         self.dataset_list = np.load(object_list_file)
         self.dataset_classes = np.loadtxt(object_classes_list_file, dtype=str)
         self.result_file = result_file
+        self.max_clicks = max_clicks
 
-    def eval_per_class(self, label=None, MAX_IOU=0.8, dataset_=None, dataset_classes=None, exclude_classes=['wall','ceiling','floor','unlabelled','unlabeled']):
+    def eval_per_class(self, label=None, MAX_IOU=0.8, dataset_=None, dataset_classes=None, exclude_classes=['wall','ceiling','floor','unlabelled','unlabeled'], max_num_clicks=20):
         objects = {}
 
         if exclude_classes:
@@ -58,6 +60,7 @@ class EvaluatorSO():
         results_dict_per_click = {}
         results_dict_per_click_iou = {}
         all={}
+
         with open(self.result_file, 'r') as f:
             while True:
                 line = f.readline()
@@ -82,7 +85,7 @@ class EvaluatorSO():
                             num_objects+=1
                             ordered_clicks.append(float(num_clicks))
 
-                    elif int(num_clicks)>=20 and (float(iou)>=0):
+                    elif int(num_clicks)>=max_num_clicks and (float(iou)>=0): 
                         if (scene_name+'_'+object_id) not in results_dict_KatIOU:
                             results_dict_KatIOU[scene_name+'_'+object_id] = float(num_clicks)
                             num_objects += 1
@@ -99,20 +102,18 @@ class EvaluatorSO():
 
         if len(results_dict_KatIOU.values())==0:
             #print('no objects to eval')
-            return 0
-
+            return None
 
         click_at_IoU =sum(results_dict_KatIOU.values())/len(results_dict_KatIOU.values())
         #print('click@', MAX_IOU, click_at_IoU, num_objects, len(results_dict_KatIOU.values()))
 
-
         return ordered_clicks, sum(results_dict_KatIOU.values()), len(results_dict_KatIOU.values()), results_dict_per_click_iou, results_dict_per_click 
 
-
     def eval_results(self):
-        print(f'--------- Evaluating {os.path.basename(self.result_file)}-----------')
         NOC = {}
         NOO = {}
+
+        max_num_clicks = self.max_clicks
       
         for iou_max in self.MAX_IOU:
             NOC[iou_max] = []
@@ -122,7 +123,7 @@ class EvaluatorSO():
 
             for l in list(set(self.label_all)):    
             
-                _, noc_perclass, noo_perclass, iou_per_click, noo_per_click = self.eval_per_class(l, iou_max, self.dataset_list, self.dataset_classes, exclude_classes=None)
+                _, noc_perclass, noo_perclass, iou_per_click, noo_per_click = self.eval_per_class(l, iou_max, self.dataset_list, self.dataset_classes, exclude_classes=None, max_num_clicks=max_num_clicks)
                 NOC[iou_max].append(noc_perclass)
                 NOO[iou_max].append(noo_perclass)
 
@@ -130,33 +131,26 @@ class EvaluatorSO():
                     IOU_PER_CLICK_dict = iou_per_click
                 else:
                     for k in IOU_PER_CLICK_dict.keys():
-                        IOU_PER_CLICK_dict[k] += iou_per_click[k]
+                        if int(k) <= max_num_clicks:
+                            IOU_PER_CLICK_dict[k] += iou_per_click[k]
 
                 if NOO_PER_CLICK_dict == None:
                     NOO_PER_CLICK_dict = noo_per_click
                 else:
                     for k in NOO_PER_CLICK_dict.keys():
-                        NOO_PER_CLICK_dict[k] += noo_per_click[k]
-
-
+                        if int(k) <= max_num_clicks:
+                            NOO_PER_CLICK_dict[k] += noo_per_click[k]
+        
         results_dict = {
             'NoC@50': sum(NOC[0.5])/sum(NOO[0.5]),
             'NoC@65': sum(NOC[0.65])/sum(NOO[0.65]),
             'NoC@80': sum(NOC[0.8])/sum(NOO[0.8]),
             'NoC@85': sum(NOC[0.85])/sum(NOO[0.85]),
-            'NoC@90': sum(NOC[0.9])/sum(NOO[0.9]),
-            'IoU@1': IOU_PER_CLICK_dict['1']/NOO_PER_CLICK_dict['1'],
-            'IoU@2': IOU_PER_CLICK_dict['2']/NOO_PER_CLICK_dict['2'],
-            'IoU@3': IOU_PER_CLICK_dict['3']/NOO_PER_CLICK_dict['3'],
-            'IoU@5': IOU_PER_CLICK_dict['5']/NOO_PER_CLICK_dict['5'],
-            'IoU@10': IOU_PER_CLICK_dict['10']/NOO_PER_CLICK_dict['10'],
-            'IoU@15': IOU_PER_CLICK_dict['15']/NOO_PER_CLICK_dict['15'],
-            'IoU@20': IOU_PER_CLICK_dict['20']/NOO_PER_CLICK_dict['20']
-        }
-
-        for key, value in results_dict.items():
-            print(f'{key}: {value:.4f}')
-
+            'NoC@90': sum(NOC[0.9])/sum(NOO[0.9])
+            }
+        
+        for i in range(max_num_clicks):
+            results_dict[f'IoU@{str(i+1)}'] = IOU_PER_CLICK_dict[str(i+1)]/NOO_PER_CLICK_dict[str(i+1)]
 
         return results_dict
 
@@ -166,13 +160,14 @@ def get_args_parser():
     parser.add_argument('--dataset', type=str, required=True, help='Path to the dataset')
     parser.add_argument('--val_list', type=str, required=True, help='Path to the validation list')
     parser.add_argument('--val_list_classes', type=str, required=True, help='Path to the file with validation classes')
-    parser.add_argument('--results_file', type=str, required=True, help='Path to the file where results will be saved')
+    parser.add_argument('--results_file', type=str, required=True, help='Path to the file where results are be saved')
+    parser.add_argument('--max_clicks', type=int, default=20, help='Maximum number of clicks to consider for evaluation')
 
     return parser
 
 def main(args):
 
-    evaluator = EvaluatorSO(args.dataset, args.val_list, args.val_list_classes, args.results_file, [0.5,0.65,0.8,0.85,0.9])
+    evaluator = EvaluatorSO(args.dataset, args.val_list, args.val_list_classes, args.results_file, [0.5,0.65,0.8,0.85,0.9], args.max_clicks)
     results_dict = evaluator.eval_results()
 
 if __name__ == '__main__':

@@ -13,7 +13,8 @@ from plukovic.sam_extraction import (
 )
 
 from plukovic.projection import (
-    check_camera_visibility,
+    raytrace_3d_to_pixel,
+    raytrace_pixel_to_3d,
     z_filter,
     angle_sort
 )
@@ -28,7 +29,7 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     camera_indices = torch.arange(len(scene_data.poses)).to(click_coordinate.device)
 
     if config['visualize']:
-        visualize_scene_with_trajectory(scene_data, camera_indices.cpu().numpy(), [click_coordinate.cpu().numpy()], [], subsample_frustrums=True)
+        visualize_scene_with_trajectory(scene_data, camera_indices.cpu().numpy(), [click_coordinate.cpu().numpy()], [], subsample_frustrums=False)
 
     if config['verbose']: print(f"    Original number of cameras: {len(camera_indices)}")
     camera_indices = z_filter(scene_data, camera_indices, click_coordinate)
@@ -38,38 +39,28 @@ def find_visible_cameras(scene_data, click_coordinate, config):
     if config['verbose']: print(f"    Number of cameras after subsampling: {len(camera_indices)}")
 
     if config['visualize']:
-        visualize_scene_with_trajectory(scene_data, camera_indices.cpu().numpy(), [click_coordinate.cpu().numpy()], [], subsample_frustrums=True)
+        visualize_scene_with_trajectory(scene_data, camera_indices.cpu().numpy(), [click_coordinate.cpu().numpy()], [], subsample_frustrums=False)
 
     visible_cameras = []
     pixel_coords = []
     i = 0
-    
-    #if config['num_new_clicks_fg'] > config['num_new_clicks_bg']:
-    #    if config['verbose']: print(f"    Requested number of foreground pixels is larger, extracting {config['num_new_clicks_fg']} cameras.")
-    #    num_new_clicks = config['num_new_clicks_fg']
-    #else:
-    #    if config['verbose']: print(f"    Requested number of background pixels is larger, extracting {config['num_new_clicks_bg']} cameras.")
-    #    num_new_clicks = config['num_new_clicks_bg']
 
     num_new_clicks = config['num_cameras']
     camera_indices = camera_indices[:config['max_attempts_camera_selection']]
     random.shuffle(camera_indices)
 
-    if config['verbose']: print(f"    Extracting {num_new_clicks} cameras.")
-
-    for _ in tqdm(range(min(config['max_attempts_camera_selection'], len(camera_indices) - i)), desc="    Finding visible cameras", disable=not config['verbose']):
-        if len(visible_cameras) >= num_new_clicks:
-            break
+    for _ in tqdm(range(min(config['max_attempts_camera_selection'], len(camera_indices) - i)), desc=f"    Finding visible cameras ({num_new_clicks})", disable=not config['verbose']):
+        
+        if len(visible_cameras) >= num_new_clicks: break
 
         if i >= len(camera_indices):
-            if config['verbose']:
-                print(f"    Warning: Reached the end of camera indices while trying to find {num_new_clicks} cameras.")
+            if config['verbose']: print(f"    Warning: Reached the end of camera indices while trying to find {num_new_clicks} cameras.")
             break
 
         idx = camera_indices[i]
         i += 1
 
-        is_visible, pixel = check_camera_visibility(scene_data, idx, click_coordinate, config)
+        is_visible, pixel = raytrace_3d_to_pixel(scene_data, idx, click_coordinate, config)
 
         if is_visible:
             visible_cameras.append(idx)
@@ -102,27 +93,19 @@ def augment_click(scene_data, cameras, sam_masks, config, foreground=True):
             if len(sampled_clicks) >= num_new_clicks: break
             try:
                 cam_id = int(cam_id)
-                pose = scene_data.__get_camera_pose__(cam_id)
-                fx, fy, cx, cy = scene_data.__get_camera_intrinsics__(cam_id)
-                depth_raw = scene_data.__get_camera_depth__(cam_id)
 
                 mask = sam_masks[str(cam_id)]['foreground'].to(config['device']) if foreground else sam_masks[str(cam_id)]['background'].to(config['device'])
 
                 key = 'foreground_samples' if foreground else 'background_samples'
                 if len(sam_masks[str(cam_id)][key]) == 0: continue
                 x, y = sam_masks[str(cam_id)][key].pop()
-                d = depth_raw[y, x] / 1000.0
-                if d < config['projection_near_m'] or d > config['projection_far_m']: continue
-                
+
+                visible, point_world = raytrace_pixel_to_3d(scene_data, cam_id, (x, y), config=config)
+
+                if not visible: continue
                 if foreground: sam_masks[str(cam_id)]['selected_foreground_samples'].append((x, y))
                 else: sam_masks[str(cam_id)]['selected_background_samples'].append((x, y))
-
-                x_cam = (x - cx) * d / fx
-                y_cam = (y - cy) * d / fy
-                z_cam = d
-                point_cam = torch.tensor([x_cam, y_cam, z_cam, 1.0]).to(config["device"])
-                point_world = torch.matmul(pose, point_cam)
-                sampled_clicks.append(point_world[:3].cpu().tolist())
+                sampled_clicks.append(point_world.cpu().tolist())
 
             except Exception as e:
                 print(f"        Error processing camera {cam_id}: {e}")
@@ -196,8 +179,7 @@ def process_click(scene_data, click_coordinate, config):
 
         clicks_bg.extend(new_clicks)
     
-    if config['visualize']:
-        visualize_scene_with_trajectory(scene_data, selected_cameras, [click_coordinate.cpu().tolist()] + clicks_fg, clicks_bg)
+    if config['visualize']: visualize_scene_with_trajectory(scene_data, selected_cameras, [click_coordinate.cpu().tolist()] + clicks_fg, clicks_bg, subsample_frustrums=False)
 
     if config['verbose']: print(f"Done processing click: {click_coordinate}, on scene: {scene_data.scene_name}")
 

@@ -4,19 +4,22 @@ from interactive_tool.utils import find_nearest
 from plukovic.augument_clicks import process_click
 
 config = {
-    'num_new_clicks_fg': 50,
-    'num_new_clicks_bg': 50,
+    'num_new_clicks_fg': 10,
+    'num_new_clicks_bg': 9,
     'max_attempts_camera_selection': 100,
     'max_attemps_pixel_sampling': 5,
     'object_click_padding': 5,
-    'verbose': False,
+    'verbose': True,
     'visualize': False,
-    'projection_near_m': 0.1,
-    'projection_far_m': 5.0,
+    'projection_near_m': 0.2,
+    'projection_far_m': 100.0,
     'depth_threshold_mm': 30,
     'num_cameras': 1,
     'sampling': 'random',
-    'num_samples': 120,
+    'num_samples': 50,
+    'ray_samples': 20,
+    'occlusion_threshold_m': 0.2,
+    'default_projection_depth_m': 10.0,
     'device': "cpu"
 }
 

@@ -1,0 +1,11 @@
+IoU Statistics
+====================
+Mean IoU: 0.5180
+Median IoU: 0.5706
+Std Dev IoU: 0.3153
+Min IoU: 0.0000
+Max IoU: 1.0000
+Average Clicks: 4.8028
+Min Clicks: 0.0000
+Max Clicks: 10.0000
+Average Efficiency (IoU/Click): 0.1666
