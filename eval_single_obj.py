@@ -94,8 +94,8 @@ def Evaluate(model, data_loader, args, device):
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'val_results_single_{timestamp}.csv'
     results_file = os.path.join(args.output_dir, filename)
-    f = open(results_file, 'w')
-
+    f = open(results_file, 'w', buffering=1) 
+    
     for batched_inputs in metric_logger.log_every(data_loader, 10, header):
 
         coords, raw_coords, feats, labels, labels_full, inverse_map, click_idx, scene_name, object_id = batched_inputs
@@ -183,6 +183,7 @@ def Evaluate(model, data_loader, args, device):
                 line = str(instance_counter+idx) + ' ' + scene_name[idx].replace('scene','') + ' '  + object_id[idx] + ' ' + str(current_num_clicks) +  ' ' + str(
                 sample_iou.cpu().numpy()) + '\n'
                 f.write(line)
+                f.flush()
                 print(scene_name[idx], ' | Object: ', object_id[idx], ' | num clicks: ', current_num_clicks, ' | IOU: ', sample_iou.item())
 
                 if current_num_clicks < len(sim_clicks[idx]):
